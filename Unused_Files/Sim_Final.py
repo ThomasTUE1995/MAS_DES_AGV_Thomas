@@ -155,11 +155,11 @@ def next_workstation(job, job_shop, env, all_store):
         finish_time = env.now
         job_shop.tardiness[job.number] = max(job.priority * (finish_time - job.dueDate[job.numberOfOperations]), 0)
         job_shop.WIP -= 1
-        job_shop.makespan[job.number] = finish_time - job.dueDate[0]
+        job_shop.flowtime[job.number] = finish_time - job.dueDate[0]
 
         # If the 2500th job has finished and jobs 500 to 2500 have also finished, stop the simulation
         if job.number > 2499:
-            if np.count_nonzero(job_shop.makespan[499:2499]) == 2000:
+            if np.count_nonzero(job_shop.flowtime[499:2499]) == 2000:
                 job_shop.finishtime = env.now
                 job_shop.end_event.succeed()
 
@@ -294,7 +294,7 @@ def source(env, number1, interval, job_shop, due_date_setting):
             number1 += 1
             job = New_Job('job%02d' % ii, env, ii, due_date_setting)
             job_shop.tardiness.append(-1)
-            job_shop.makespan.append(0)
+            job_shop.flowtime.append(0)
             job_shop.WIP += 1
             firstWC = operationOrder[job.type - 1][0]
             store = eval('job_shop.storeWC' + str(firstWC))

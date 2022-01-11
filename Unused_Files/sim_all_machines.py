@@ -167,7 +167,7 @@ def next_workstation(job, job_shop, env):
         job_shop.tardiness.append(finish_time - job.dueDate[job.numberOfOperations])
         # print(finish_time - job.dueDate[0], job.currentOperation)
         # currentCycleTime.append(finish_time - job.dueDate[0])
-        job_shop.makespan.append(finish_time - job.dueDate[0])
+        job_shop.flowtime.append(finish_time - job.dueDate[0])
 
 
 # @jit(nopython=True)

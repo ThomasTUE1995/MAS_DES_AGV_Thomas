@@ -152,10 +152,10 @@ def next_workstation(job, job_shop, env, min_job, max_job, max_wip):
         job_shop.tardiness[job.number] = max(job.priority * (finish_time - job.dueDate[job.numberOfOperations]), 0)
         job_shop.mean_WIP.append(job_shop.WIP)
         job_shop.WIP -= 1
-        job_shop.makespan[job.number] = finish_time - job.dueDate[0]
+        job_shop.flowtime[job.number] = finish_time - job.dueDate[0]
 
         if job.number > max_job:
-            if np.count_nonzero(job_shop.makespan[min_job:max_job]) == 2000:
+            if np.count_nonzero(job_shop.flowtime[min_job:max_job]) == 2000:
                 job_shop.finishtime = env.now
                 job_shop.end_event.succeed()
 
@@ -272,7 +272,7 @@ def source(env, number1, interval, job_shop, due_date_setting, rush_job_perc):
         number1 += 1
         job_shop.job_allocation.append(0)
         job_shop.tardiness.append(-1)
-        job_shop.makespan.append(0)
+        job_shop.flowtime.append(0)
         job = New_Job('job%02d' % ii, env, ii, due_date_setting, job_shop, rush_job_perc)
         job_shop.WIP += 1
         firstWC = operationOrder[job.type - 1][0]
@@ -323,7 +323,7 @@ class New_Job:
         p = random.choices([1, 0], weights=[rush_job_perc, 1 - rush_job_perc], k=1)
 
         # print(job_shop.makespan[::(self.number + 1)])
-        flowtime = np.mean([job_shop.makespan[i] for i in range(self.number) if job_shop.makespan[i] > 0])
+        flowtime = np.mean([job_shop.flowtime[i] for i in range(self.number) if job_shop.flowtime[i] > 0])
         if math.isnan(flowtime):
             flowtime = 0
 

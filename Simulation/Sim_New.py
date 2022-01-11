@@ -233,15 +233,15 @@ def next_workstation(job, job_shop, env):
         # print(job.number)
         # print(np.count_nonzero(job_shop.tardiness[499:2500]))
         # job_shop.tardiness.append(max((finish_time - job.dueDate[job.numberOfOperations]), 0))
-        job_shop.makespan[job.number] = finish_time - job.dueDate[0]
+        job_shop.flowtime[job.number] = finish_time - job.dueDate[0]
 
-        if (job.number > 2499) & (np.count_nonzero(job_shop.makespan[499:2499]) == 2000):
+        if (job.number > 2499) & (np.count_nonzero(job_shop.flowtime[499:2499]) == 2000):
             job_shop.finishtime = env.now
             job_shop.end_event.succeed()
         #
         #
         if job.number > 2499:
-            print(np.count_nonzero(job_shop.makespan[499:2500]) == 2000)
+            print(np.count_nonzero(job_shop.flowtime[499:2500]) == 2000)
 
 
 def bid_calculation(weights_new, machinenumber, pool, processing_time, setup_time, queue, proc_time,
@@ -423,7 +423,7 @@ def source(env, number1, interval, job_shop):
             number1 += 1
             job = New_Job('job%02d' % ii, env, ii)
             job_shop.tardiness.append(-1)
-            job_shop.makespan.append(0)
+            job_shop.flowtime.append(0)
             firstWC = operationOrder[job.type - 1][0]
             d = job_pool_agent(job, firstWC, job_shop)
             env.process(d)

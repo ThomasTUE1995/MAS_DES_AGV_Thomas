@@ -148,10 +148,10 @@ def next_workstation(job, job_shop, env):
         finish_time = env.now
         job_shop.tardiness[job.number] = max(job.priority * (finish_time - job.dueDate[job.numberOfOperations]), 0)
         job_shop.WIP -= 1
-        job_shop.makespan[job.number] = finish_time - job.dueDate[0]
+        job_shop.flowtime[job.number] = finish_time - job.dueDate[0]
 
         if job.number > 2999:
-            if np.count_nonzero(job_shop.makespan[999:999]) == 2000:
+            if np.count_nonzero(job_shop.flowtime[999:999]) == 2000:
                 job_shop.finish_time = env.now
                 job_shop.end_event.succeed()
 
@@ -276,7 +276,7 @@ def source(env, number1, interval, job_shop, due_date_setting):
             if ii == 999:
                 job_shop.start_time = env.now
             job_shop.tardiness.append(-1)
-            job_shop.makespan.append(0)
+            job_shop.flowtime.append(0)
             job_shop.WIP += 1
             firstWC = operationOrder[job.type - 1][0]
             store = job_shop.storeWC[firstWC - 1]
