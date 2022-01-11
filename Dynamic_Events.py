@@ -415,7 +415,6 @@ def do_simulation_with_weights(mean_weight_new, arrivalMean, due_date_tightness,
     # print(tard1)
     return robustness, stability
 
-
 if __name__ == '__main__':
     # df = pd.read_csv('Runs/Attribute_Runs/Run-Weights-NoDD-85-4-5000.csv', header=None)
     # weights = df.values.tolist()
