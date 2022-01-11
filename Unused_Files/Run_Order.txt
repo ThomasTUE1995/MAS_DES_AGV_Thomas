@@ -1,0 +1,6 @@
+Runs/Run-FCFS1-85-4.txt
+Runs/Run-FCFS1-90-4.txt
+Runs/Run-FCFS1-90-6.txt
+Runs/Run-FCFS1-95-4.txt
+Runs/Run-FCFS1-95-6.txt
+Runs/Run-FCFS1-95-8.txt

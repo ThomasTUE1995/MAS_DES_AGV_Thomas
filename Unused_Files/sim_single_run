@@ -1,0 +1,475 @@
+"""
+DES of the MAS. This DES is used to optimize certain aspects of the
+MAS such as the bids. It can be used to quickly run multiple experiments.
+The results can then be implemented in the MAS to see the effects.
+"""
+import random
+import sys
+from collections import defaultdict
+import simpy
+from simpy import *
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import warnings
+import matplotlib.cbook
+import multiprocessing as mp
+
+warnings.filterwarnings("ignore", category=matplotlib.cbook.mplDeprecation)
+
+"Initial parameter of the job shop"
+number = 50  # Max number of jobs if infinite is false
+noJobCap = True  # For infinite
+maxTime = 100.0  # Runtime limit
+processingTimes = [[6.75, 3.75, 2.5, 7.5], [3.75, 5.0, 7.5], [3.75, 2.5, 8.75, 5.0, 5.0]]
+operationOrder = [[3, 1, 2, 5], [4, 1, 3], [2, 5, 1, 4, 3]]
+numberOfOperations = [4, 3, 5]
+machinesPerWC = [4, 2, 5, 3, 2]
+setupTime = [[0, 0.125, 0.25], [0.125, 0, 0.16], [0.25, 0.16, 0]]
+arrivalMean = 2.0  # Mean of arrival process
+dueDateTightness = 3
+machine_number = [[1, 2, 3, 4], [5, 6], [7, 8, 9, 10, 11], [12, 13, 14], [15, 16]]
+release_times = []
+
+"Initial parameters of the GES"
+noAttributes = 9
+# weights = np.zeros((16, noAttributes))
+mean_weight = np.zeros((16, noAttributes))
+std_weight = np.zeros((16, noAttributes))
+std_weight = std_weight + np.log(0.3)
+alpha_mean = 0.1
+alpha_std = 0.025
+no_generation = 500
+population_size = 24
+for i in range(sum(machinesPerWC)):
+    mean_weight[i][0] = -0.5
+    mean_weight[i][3] = -3
+
+if noJobCap:
+    number = 0
+
+QueuesWC1 = []
+QueuesWC2 = []
+QueuesWC3 = []
+QueuesWC4 = []
+QueuesWC5 = []
+
+currentTardiness = []
+currentCycleTime = []
+
+last_job_WC1 = np.zeros(machinesPerWC[0])
+last_job_WC2 = np.zeros(machinesPerWC[1])
+last_job_WC3 = np.zeros(machinesPerWC[2])
+last_job_WC4 = np.zeros(machinesPerWC[3])
+last_job_WC5 = np.zeros(machinesPerWC[4])
+
+makespan = []
+test_weights = []
+
+
+def bid_winner(env, job, noOfMachines, currentWC, job_shop):
+    list_jobs = job
+    # bids = np.zeros((len(job), noOfMachines))
+    current_bid = np.zeros(noOfMachines)
+    current_job = np.zeros(noOfMachines)
+    current_time = np.zeros(noOfMachines)
+    best_bid = []
+    best_job = []
+    best_time = []
+    removed_job = []
+    queue = eval('job_shop.machinesWC' + str(currentWC))
+    last_job = eval('last_job_WC' + str(currentWC))
+    for ii in range(len(job)):
+        new_job = job[ii]
+        for jj in range(noOfMachines):
+            if last_job[jj] != 0:
+                # time = new_job.processingTime[new_job.currentOperation - 1] + setupTime[new_job.type - 1][
+                #     int(last_job[j]) - 1]
+                setup_time = setupTime[new_job.type - 1][int(last_job[jj]) - 1]
+            else:
+                setup_time = 0
+
+            # bids[i][j] = 1 / (time + no_in_system(queue[j]))
+            new_bid = bid_calculation(test_weights, machine_number[currentWC - 1][jj], list_jobs,
+                                      new_job.processingTime[new_job.currentOperation - 1], setup_time,
+                                      new_job, queue[jj], currentWC, env)
+            # new_bid = 1 / (time + no_in_system(queue[j]))
+            if new_bid > current_bid[jj]:
+                current_bid[jj] = new_bid
+                current_job[jj] = ii
+                current_time[jj] = new_job.processingTime[new_job.currentOperation - 1] + setup_time
+
+    # Determine the winning bids
+    for dup in sorted(list_duplicates(current_job)):
+        bestbid = -1
+        bestmachine = 0
+        bestime = 0
+        for ii in dup[1]:
+            if bestbid < current_bid[ii]:
+                bestbid = current_bid[ii]
+                bestmachine = ii
+                bestime = current_time[ii]
+        best_bid.append(bestmachine)  # Machine winner
+        best_time.append(bestime)
+        best_job.append(int(dup[0]))  # Job to be processed
+
+    for ii in range(len(best_job)):
+        c = globals()['WC' + str(currentWC)](env, job[best_job[ii]], job_shop, best_bid[ii], best_time[ii])
+        env.process(c)
+        removed_job.append(best_job[ii])
+
+    for ii in reversed(removed_job):
+        func = eval('job_shop.storeWC' + str(currentWC))
+        yield func.get(lambda mm: mm == list_jobs[ii])
+
+
+def bid_calculation(weights, machinenumber, pool, processing_time, setup_time, job, queue, wc, env):
+    attribute = np.zeros(noAttributes)
+    attribute[0] = processing_time
+    attribute[1] = job.numberOfOperations - job.currentOperation
+    attribute[2] = no_in_system(queue)
+    attribute[3] = setup_time
+    attribute[4] = job.dueDate[job.currentOperation - 1] - (processing_time + setup_time) - env.now
+    attribute[5] = len(pool)
+    attribute[6] = machinesPerWC[wc - 1]
+    max_due_date = []
+    for n in range(len(pool)):
+        current_job = pool[n]
+        max_due_date.append(current_job.dueDate[current_job.numberOfOperations])
+    attribute[7] = max(max_due_date)
+    attribute[8] = job.weight
+
+    weighted_bid = []
+    # print(weights)
+    for n in range(noAttributes):
+        weighted_bid.append(attribute[n] * test_weights[machinenumber - 1][n])
+
+    # bid = sum(attribute[n] * weights[machine_number - 1][n] for n in range(len(attribute)))
+    return sum(weighted_bid)
+
+
+def next_workstation(job, job_shop, env):
+    if job.currentOperation + 1 <= job.numberOfOperations:
+        job.currentOperation += 1
+        nextWC = operationOrder[job.type - 1][job.currentOperation - 1]
+        c = job_pool_agent(job, job_shop, nextWC)
+        env.process(c)
+    else:
+        finish_time = env.now
+        currentTardiness.append(finish_time - job.dueDate[job.numberOfOperations])
+        makespan.append(finish_time)
+        currentCycleTime.append(finish_time - job.dueDate[0])
+
+
+def WC1(env, job, job_shop, choice, tib):
+    QueuesWC1.append({ii: len(job_shop.machinesWC1[ii].put_queue) for ii in range(len(job_shop.machinesWC1))})
+    last_job_WC1[choice] = job.type
+    with job_shop.machinesWC1[choice].request() as req:
+        # Wait in queue
+        yield req
+        yield env.timeout(tib)
+        QueuesWC1.append({ii: len(job_shop.machinesWC1[ii].put_queue) for ii in range(len(job_shop.machinesWC1))})
+        next_workstation(job, job_shop, env)
+
+
+def WC2(env, job, job_shop, choice, tib):
+    QueuesWC2.append({ii: len(job_shop.machinesWC2[ii].put_queue) for ii in range(len(job_shop.machinesWC2))})
+    with job_shop.machinesWC2[choice].request() as req2:
+        # Wait in queue
+        yield req2
+        yield env.timeout(tib)
+        QueuesWC2.append({ii: len(job_shop.machinesWC2[ii].put_queue) for ii in range(len(job_shop.machinesWC2))})
+        next_workstation(job, job_shop, env)
+
+
+def WC3(env, job, job_shop, choice, tib):
+    QueuesWC3.append({ii: len(job_shop.machinesWC3[ii].put_queue) for ii in range(len(job_shop.machinesWC3))})
+    with job_shop.machinesWC3[choice].request() as req2:
+        # Wait in queue
+        yield req2
+        yield env.timeout(tib)
+        QueuesWC3.append({ii: len(job_shop.machinesWC3[ii].put_queue) for ii in range(len(job_shop.machinesWC3))})
+        next_workstation(job, job_shop, env)
+
+
+def WC4(env, job, job_shop, choice, tib):
+    QueuesWC4.append({ii: len(job_shop.machinesWC4[ii].put_queue) for ii in range(len(job_shop.machinesWC4))})
+    with job_shop.machinesWC4[choice].request() as req2:
+        # Wait in queue
+        yield req2
+        yield env.timeout(tib)
+        QueuesWC4.append({ii: len(job_shop.machinesWC4[ii].put_queue) for ii in range(len(job_shop.machinesWC4))})
+        next_workstation(job, job_shop, env)
+
+
+def WC5(env, job, job_shop, choice, tib):
+    QueuesWC5.append({ii: len(job_shop.machinesWC5[ii].put_queue) for ii in range(len(job_shop.machinesWC5))})
+    # choice = [k for k, v in sorted(Qlength5.items(), key=lambda b: b[1])][0]
+    with job_shop.machinesWC5[choice].request() as req2:
+        # Wait in queue
+        yield req2
+        yield env.timeout(tib)
+        QueuesWC5.append({ii: len(job_shop.machinesWC5[ii].put_queue) for ii in range(len(job_shop.machinesWC5))})
+        next_workstation(job, job_shop, env)
+
+
+def job_pool_agent(job, job_shop, currentWC):
+    func = eval('job_shop.storeWC' + str(currentWC))
+    yield func.put(job)
+
+
+def cfp_wc1(env, job_shop):
+    while True:
+        if len(job_shop.storeWC1.items) > 0:
+            c = bid_winner(env, job_shop.storeWC1.items, machinesPerWC[0], 1, job_shop)
+            env.process(c)
+        tib = 0.2
+        yield env.timeout(tib)
+
+
+def cfp_wc2(env, job_shop):
+    while True:
+        if len(job_shop.storeWC2.items) > 0:
+            c = bid_winner(env, job_shop.storeWC2.items, machinesPerWC[1], 2, job_shop)
+            env.process(c)
+        tib = 0.2
+        yield env.timeout(tib)
+
+
+def cfp_wc3(env, job_shop):
+    while True:
+        if len(job_shop.storeWC3.items) > 0:
+            c = bid_winner(env, job_shop.storeWC3.items, machinesPerWC[2], 3, job_shop)
+            env.process(c)
+        tib = 0.2
+        yield env.timeout(tib)
+
+
+def cfp_wc4(env, job_shop):
+    while True:
+        if len(job_shop.storeWC4.items) > 0:
+            c = bid_winner(env, job_shop.storeWC4.items, machinesPerWC[3], 4, job_shop)
+            env.process(c)
+        tib = 0.2
+        yield env.timeout(tib)
+
+
+def cfp_wc5(env, job_shop):
+    while True:
+        if len(job_shop.storeWC5.items) > 0:
+            c = bid_winner(env, job_shop.storeWC5.items, machinesPerWC[4], 5, job_shop)
+            env.process(c)
+        tib = 0.2
+        yield env.timeout(tib)
+
+
+def list_duplicates(seq):
+    tally = defaultdict(list)
+    for ii, item in enumerate(seq):
+        tally[item].append(ii)
+    return ((key, locs) for key, locs in tally.items()
+            if len(locs) > 1)
+
+
+def no_in_system(R):
+    """Total number of jobs in the resource R"""
+    return len(R.put_queue) + len(R.users)
+
+
+def source(env, number, interval, job_shop):
+    if not noJobCap:  # If there is a limit on the number of jobs
+        for ii in range(number):
+            job = New_Job('job%02d' % ii, env)
+            firstWC = operationOrder[job.type - 1][0]
+            d = job_pool_agent(job, job_shop, firstWC)
+            env.process(d)
+            t = random.expovariate(1.0 / interval)
+            yield env.timeout(t)
+    else:
+        while True:  # Needed for infinite case as True refers to "until".
+            no = number
+            number += 1
+            job = New_Job('job%02d' % no, env)
+            # print(env.now)
+            firstWC = operationOrder[job.type - 1][0]
+            d = job_pool_agent(job, job_shop, firstWC)
+            env.process(d)
+            t = random.expovariate(1.0 / interval)
+            yield env.timeout(t)
+
+
+class jobShop:
+    def __init__(self, env):
+        machine_wc1 = {ii: Resource(env) for ii in range(machinesPerWC[0])}
+        machine_wc2 = {ii: Resource(env) for ii in range(machinesPerWC[1])}
+        machine_wc3 = {ii: Resource(env) for ii in range(machinesPerWC[2])}
+        machine_wc4 = {ii: Resource(env) for ii in range(machinesPerWC[3])}
+        machine_wc5 = {ii: Resource(env) for ii in range(machinesPerWC[4])}
+
+        job_poolwc1 = simpy.FilterStore(env)
+        job_poolwc2 = simpy.FilterStore(env)
+        job_poolwc3 = simpy.FilterStore(env)
+        job_poolwc4 = simpy.FilterStore(env)
+        job_poolwc5 = simpy.FilterStore(env)
+
+        self.machinesWC1 = machine_wc1
+        self.machinesWC2 = machine_wc2
+        self.machinesWC3 = machine_wc3
+        self.machinesWC4 = machine_wc4
+        self.machinesWC5 = machine_wc5
+
+        self.storeWC1 = job_poolwc1
+        self.storeWC2 = job_poolwc2
+        self.storeWC3 = job_poolwc3
+        self.storeWC4 = job_poolwc4
+        self.storeWC5 = job_poolwc5
+
+
+class New_Job:
+    def __init__(self, name, env):
+        jobType = random.choices([1, 2, 3], weights=[0.3, 0.5, 0.2], k=1)
+        self.weight = random.uniform(1, 3)
+        # self.type = 2
+        self.type = jobType[0]
+        self.name = name
+        self.currentOperation = 1
+        self.processingTime = np.zeros(numberOfOperations[self.type - 1])
+        self.dueDate = np.zeros(numberOfOperations[self.type - 1] + 1)
+        self.dueDate[0] = env.now
+        release_times.append(env.now)
+        # self.processingTime = processingTimes[self.type - 1]
+        self.operationOrder = operationOrder[self.type - 1]
+        self.numberOfOperations = numberOfOperations[self.type - 1]
+        # self.dueDate = env.now
+        for ii in range(self.numberOfOperations):
+            meanPT = processingTimes[self.type - 1][ii]
+            self.processingTime[ii] = random.gammavariate(3, meanPT / 3)
+            self.dueDate[ii + 1] = self.dueDate[ii] + self.processingTime[ii] * dueDateTightness
+
+
+# def run_simulation(weight):
+#     seed = random.randrange(sys.maxsize)
+#     rng = random.Random(seed)
+#     print("Seed was:", seed)
+#     env = Environment()
+#
+#     job_shop = jobShop(env, weight)
+#     # job_pool_wc1 = simpy.FilterStore(env)
+#     env.process(source(env, number, arrivalMean, job_shop))
+#     env.process(cfp_wc1(env, job_shop))
+#     env.process(cfp_wc2(env, job_shop))
+#     env.process(cfp_wc3(env, job_shop))
+#     env.process(cfp_wc4(env, job_shop))
+#     env.process(cfp_wc5(env, job_shop))
+#     env.run(until=maxTime)
+#
+#     return max(makespan), sum(currentTardiness)
+
+
+min_objective = []
+max_objective = []
+
+objective_positive = []
+objective_minimum = []
+
+eta = np.zeros((12, 16, noAttributes))
+
+if __name__ == '__main__':
+    # print(mean_weight)
+    for num_sim in range(500):
+        for i in range(12):
+            # print(i)
+            test_weights_pos = np.zeros((16, noAttributes))
+            test_weights_min = np.zeros((16, noAttributes))
+            for j in range(noAttributes):
+                for m in range(sum(machinesPerWC)):
+                    eta[i][m][j] = random.gauss(0, np.exp(std_weight[m][j]))
+                    test_weights_pos[m][j] = mean_weight[m][j] + eta[i][m][j]
+                    test_weights_min[m][j] = mean_weight[m][j] - eta[i][m][j]
+
+            seed = random.randrange(sys.maxsize)
+            rng = random.Random(seed)
+            # print("Seed was:", seed)
+            env = Environment()
+
+            test_weights = test_weights_pos
+            job_shop = jobShop(env)
+            env.process(source(env, number, arrivalMean, job_shop))
+            env.process(cfp_wc1(env, job_shop))
+            env.process(cfp_wc2(env, job_shop))
+            env.process(cfp_wc3(env, job_shop))
+            env.process(cfp_wc4(env, job_shop))
+            env.process(cfp_wc5(env, job_shop))
+            env.run(until=maxTime)
+            makespan_result_pos = np.mean(currentCycleTime)
+            currentTardiness_result_pos = np.mean(currentTardiness)
+            makespan = []
+            currentTardiness = []
+            currentCycleTime = []
+            max_objective.append(makespan_result_pos + currentTardiness_result_pos)
+
+            # print(makespan_result_pos, currentTardiness_result_pos)
+
+            # seed = random.randrange(sys.maxsize)
+            rng = random.Random(seed)
+            # print("Seed was:", seed)
+            env = Environment()
+
+            test_weights = test_weights_min
+            job_shop = jobShop(env)
+            env.process(source(env, number, arrivalMean, job_shop))
+            env.process(cfp_wc1(env, job_shop))
+            env.process(cfp_wc2(env, job_shop))
+            env.process(cfp_wc3(env, job_shop))
+            env.process(cfp_wc4(env, job_shop))
+            env.process(cfp_wc5(env, job_shop))
+            env.run(until=maxTime)
+            makespan_result_min = np.mean(currentCycleTime)
+            currentTardiness_result_min = np.mean(currentTardiness)
+            makespan = []
+            currentTardiness = []
+            currentCycleTime = []
+
+            min_objective.append(makespan_result_min + currentTardiness_result_min)
+            # print(makespan_result_min, currentTardiness_result_min)
+
+        # Normalise the current populations performance
+        for i in range(12):
+            value_obj_pos = (max_objective[i] - np.mean(max_objective)) / np.std(max_objective)
+            objective_positive.append(value_obj_pos)
+
+            value_obj_min = (min_objective[i] - np.mean(min_objective)) / np.std(min_objective)
+            objective_minimum.append(value_obj_min)
+
+        # Calculate the gradients
+        gradient_sum = np.zeros(12)
+        for i in range(12):
+            gradient_sum[i] = (objective_positive[i] - objective_minimum[i]) / 2
+
+        delta_mean_final = np.zeros((16, 9))
+        delta_std_final = np.zeros((16, 9))
+        for j in range(noAttributes):
+            for m in range(sum(machinesPerWC)):
+                delta_mean = 0
+                delta_std = 0
+                for i in range(12):
+                    delta_mean = delta_mean + (objective_positive[i] - objective_minimum[i]) / 2 * eta[i][m][j] / np.exp(
+                        std_weight[m][j])
+
+                    delta_std = delta_std + (objective_positive[i] - objective_minimum[i]) / 2 * (eta[i][m][j] ** 2 - np.exp(
+                        std_weight[m][j])) / np.exp(std_weight[m][j])
+
+                delta_mean_final[m][j] = delta_mean
+                delta_std_final[m][j] = delta_std
+
+        # Update the parameters
+        for j in range(noAttributes):
+            for m in range(sum(machinesPerWC)):
+                mean_weight[m][j] = mean_weight[m][j] + alpha_mean * delta_mean_final[m][j]
+                std_weight[m][j] = std_weight[m][j] + alpha_std * delta_std_final[m][j]
+
+        alpha_mean = 0.1 + 0.1 / 500 * num_sim
+        alpha_std = 0.025 + 0.025 / 500 * num_sim
+        print(num_sim, np.mean(max_objective))
+
+    # print(mean_weight)
