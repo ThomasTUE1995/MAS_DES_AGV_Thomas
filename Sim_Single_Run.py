@@ -439,7 +439,7 @@ if __name__ == '__main__':
         str1 = "Runs/Final_runs/Run-weights-" + str(utilization[i]) + "-" + str(due_date_settings[i]) + ".csv"
         df = pd.read_csv(str1, header=None)
         weights = df.values.tolist()
-        print("Current run is: " + str(i))
+        print("Current run is: " + str(utilization[i]) + "-" + str(due_date_settings[i]))
         obj = np.zeros(no_runs)
         for j in range(int(no_runs / no_processes)):
             jobshop_pool = Pool(processes=no_processes)
