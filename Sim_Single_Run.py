@@ -218,10 +218,12 @@ def machine_processing(job_shop, current_WC, machine_number, env, weights_new, l
             setuptime = setup_time[ind_processing_job]
             time_in_processing = next_job.processingTime[
                                      next_job.currentOperation - 1] + setuptime  # Total time the machine needs to process the job
+
             makespan[relative_machine] = set_makespan(makespan[relative_machine], next_job, env, setuptime)
             job_shop.utilization[(relative_machine, current_WC - 1)] = job_shop.utilization[(
                 relative_machine, current_WC - 1)] + setuptime + next_job.processingTime[next_job.currentOperation - 1]
             last_job[relative_machine] = next_job.type
+
             machine.items.remove(next_job)  # Remove job from queue
             yield env.timeout(time_in_processing)
             next_workstation(next_job, job_shop, env, min_job, max_job, max_wip)  # Send the job to the next workstation

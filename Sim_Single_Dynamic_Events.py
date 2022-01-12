@@ -54,31 +54,32 @@ def list_duplicates(seq):
             if len(locs) >= 1)
 
 
-def bid_winner(env, job, noOfMachines, currentWC, job_shop, last_job, makespan_currentWC, machine, store, bid_skip,
-               normalization):
-    # test_weights_new = job_shop.test_weights
+def bid_winner(env, jobs, noOfMachines, currentWC, job_shop, machine, store,
+               normaliziation_range):
+    """Used to calulcate the bidding values for each job in the pool, for each machine.
+    Then checks which machine gets which job based on these bidding values."""
     current_bid = [0] * noOfMachines
     current_job = [0] * noOfMachines
     best_bid = []
     best_job = []
-    no_of_jobs = len(job)
-    # total_rp = {j: (remain_processing_time(job[j])) for j in range(no_of_jobs)}
-    # print(total_rp)
+    no_of_jobs = len(jobs)
     total_rp = [0] * no_of_jobs
-    for jj in range(no_of_jobs):
-        total_rp[jj] = (remain_processing_time(job[jj]))
 
+    # Get the remaning processing time
+    for jj in range(no_of_jobs):
+        total_rp[jj] = (remain_processing_time(jobs[jj]))
+
+    # Get the bids for all machines
     for jj in range(noOfMachines):
-        # expected_start = expected_start_time(jj, currentWC, machine)
-        # start_time = max(env.now, makespan_currentWC[jj] + expected_start)
         queue_length = len(machine[(jj, currentWC - 1)].items)
         new_bid = [0] * no_of_jobs
-        for ii, j in enumerate(job):
+        for ii, job in enumerate(jobs):
             attributes = bid_calculation(job_shop.test_weights, machine_number_WC[currentWC - 1][jj],
-                                         j.processingTime[j.currentOperation - 1], j.currentOperation,
-                                         total_rp[ii], j.dueDate[j.numberOfOperations],
+                                         job.processingTime[job.currentOperation - 1], job.currentOperation,
+                                         total_rp[ii], job.dueDate[job.numberOfOperations],
                                          env.now,
-                                         j.priority, queue_length, normalization)
+                                         job.priority, queue_length, normaliziation_range)
+
             new_bid[ii] = attributes
 
         ind_winning_job = new_bid.index(max(new_bid))
@@ -99,42 +100,37 @@ def bid_winner(env, job, noOfMachines, currentWC, job_shop, last_job, makespan_c
         best_bid.append(bestmachine)  # Machine winner
         best_job.append(int(dup[0]))  # Job to be processed
 
+    # Put the job in the queue of the winning machine
     for ii, vv in enumerate(best_job):
-        put_job_in_queue(currentWC, best_bid[ii], job[vv], job_shop, env, machine)
+        put_job_in_queue(currentWC, best_bid[ii], jobs[vv], job_shop, machine)
 
+    # Remove job from queue of the JPA
     for ii in reversed(best_job):
-        yield store.get(lambda mm: mm == job[ii])
+        yield store.get(lambda mm: mm == jobs[ii])
 
 
 def bid_calculation(weights_new, machinenumber, processing_time,
                     current, total_rp, due_date, now, job_priority, queue_length,
                     normalization):
+    """Calulcates the bidding value of a job."""
     attribute = [0] * noAttributes
-    attribute[0] = processing_time / 8.75 * weights_new[machinenumber - 1][0]
-    attribute[1] = (current - 1) / (5 - 1) * weights_new[machinenumber - 1][1]
+    attribute[0] = processing_time / 8.75 * weights_new[machinenumber - 1][0]  # processing time
+    attribute[1] = (current - 1) / (5 - 1) * weights_new[machinenumber - 1][1]  # remaing operations
     attribute[2] = (due_date - now - normalization[0]) / (normalization[1] - normalization[0]) * \
-                   weights_new[machinenumber - 1][2]
-    attribute[3] = total_rp / 21.25 * weights_new[machinenumber - 1][3]
+                   weights_new[machinenumber - 1][2]  # slack
+    attribute[3] = total_rp / 21.25 * weights_new[machinenumber - 1][3]  # remaining processing time
     attribute[4] = (((due_date - now) / total_rp) - normalization[2]) / (normalization[3] - normalization[2]) * \
                    weights_new[machinenumber - 1][4]  # Critical Ratio
-    attribute[5] = (job_priority - 1) / (10 - 1) * weights_new[machinenumber - 1][5]  # Job Weight
+    attribute[5] = (job_priority - 1) / (10 - 1) * weights_new[machinenumber - 1][5]  # Job Priority
     attribute[6] = queue_length / 25 * weights_new[machinenumber - 1][6]  # Queue length
     attribute[7] = 0
 
     return sum(attribute)
 
 
-def expected_start_time(jj, currentWC, machine):
-    extra_start_time = 0
-    for current_job in machine[jj].items:
-        extra_start_time += (current_job.processingTime[current_job.currentOperation - 1] + mean_setup[currentWC - 1])
-
-    return extra_start_time
-
-
 def remain_processing_time(job):
+    """Calculate the remaining processing time."""
     total_rp = 0
-    # total_rp = sum((job.processingTime[ii]) for ii in range(job.currentOperation - 1, job.numberOfOperations))
     for ii in range(job.currentOperation - 1, job.numberOfOperations):
         total_rp += job.processingTime[ii]
 
@@ -142,6 +138,10 @@ def remain_processing_time(job):
 
 
 def next_workstation(job, job_shop, env, min_job, max_job, max_wip):
+    """Used to send a job to the next workstation or to complete the job.
+    If a job has finished all of its operation, the relevant information (tardiness, flowtime)
+    is stored. It is also checked if 2000 jobs have finished process, or if the max wip/time
+    is exceded. In this, the end_event is triggered and the simulation is stopped."""
     if job.currentOperation + 1 <= job.numberOfOperations:
         job.currentOperation += 1
         nextWC = operationOrder[job.type - 1][job.currentOperation - 1]
@@ -149,40 +149,26 @@ def next_workstation(job, job_shop, env, min_job, max_job, max_wip):
         store.put(job)
     else:
         finish_time = env.now
+        job_shop.totalWIP.append(job_shop.WIP)
         job_shop.tardiness[job.number] = max(job.priority * (finish_time - job.dueDate[job.numberOfOperations]), 0)
-        job_shop.mean_WIP.append(job_shop.WIP)
-        job_shop.WIP -= 1
-        job_shop.flowtime[job.number] = finish_time - job.dueDate[0]
 
+        job_shop.WIP -= 1
+        job_shop.priority[job.number] = job.priority
+        job_shop.flowtime[job.number] = finish_time - job.dueDate[0]
+        # finished_job += 1
         if job.number > max_job:
             if np.count_nonzero(job_shop.flowtime[min_job:max_job]) == 2000:
-                job_shop.finishtime = env.now
+                job_shop.finish_time = env.now
                 job_shop.end_event.succeed()
 
         if (job_shop.WIP > max_wip) | (env.now > 7_000):
-            print("Terminated")
             job_shop.end_event.succeed()
             job_shop.early_termination = 1
+            job_shop.finish_time = env.now
 
 
-def normalize(value, max_value, min_value):
-    return (value - min_value) / (max_value - min_value)
-
-
-def expected_setup_time(new_job, job_shop, list_jobs):
-    set_time = []
-
-    for f in list_jobs:
-        set_time.append(setupTime[f.type - 1][new_job.type - 1])
-
-    return max(set_time)
-
-
-def set_makespan(current_makespan, job, last_job, env, setup_time):
-    # if last_job != 0:
-    #     setup_time = setupTime[job.type - 1][int(last_job) - 1]
-    # else:
-    #     setup_time = 0
+def set_makespan(current_makespan, job, env, setup_time):
+    """Sets the makespan of a machine"""
     add = current_makespan + job.processingTime[job.currentOperation - 1] + setup_time
 
     new = env.now + job.processingTime[job.currentOperation - 1] + setup_time
@@ -190,7 +176,10 @@ def set_makespan(current_makespan, job, last_job, env, setup_time):
     return max(add, new)
 
 
-def put_job_in_queue(currentWC, choice, job, job_shop, env, machines):
+def put_job_in_queue(currentWC, choice, job, job_shop, machines):
+    """Puts a job in a machine queue. Also checks if the machine is currently active
+    or has a job in its queue. If not, it succeeds an event to tell the machine
+    that a new job has been added to the queue."""
     machines[(choice, currentWC - 1)].put(job)
     if not job_shop.condition_flag[(choice, currentWC - 1)].triggered:
         job_shop.condition_flag[(choice, currentWC - 1)].succeed()
@@ -198,7 +187,8 @@ def put_job_in_queue(currentWC, choice, job, job_shop, env, machines):
 
 def choose_job_queue(weights_new_job, machinenumber, processing_time, due_date, env,
                      setup_time,
-                     job_priority, seq_skip, normalization):
+                     job_priority, normalization):
+    """Calculates prioirities of jobs in a machines queue"""
     attribute_job = [0] * noAttributesJob
 
     attribute_job[3] = 0
@@ -211,69 +201,85 @@ def choose_job_queue(weights_new_job, machinenumber, processing_time, due_date, 
     return sum(attribute_job)
 
 
-def machine_processing(job_shop, current_WC, machine_number, env, weights_new, relative_machine, last_job, machine,
-                       makespan, seq_skip, utilization, normalization, min_job, max_job, max_wip):
+def machine_processing(job_shop, current_WC, machine_number, env, weights_new, last_job, machine,
+                       makespan, min_job, max_job, normalization, max_wip):
+    """This refers to a Machine Agent in the system. It checks which jobs it wants to process
+    next and stores relevant information regarding it."""
     while True:
         relative_machine = machine_number_WC[current_WC - 1].index(machine_number)
         if machine.items:
             setup_time = []
             priority_list = []
-            if not last_job[relative_machine]:
+            if not last_job[relative_machine]:  # Only for the first job
                 ind_processing_job = 0
                 setup_time.append(0)
             else:
                 for job in machine.items:
                     setuptime = setupTime[job.type - 1][int(last_job[relative_machine]) - 1]
-                    # priority_list.append(job.dueDate[job.numberOfOperations])
                     job_queue_priority = choose_job_queue(weights_new, machine_number,
                                                           job.processingTime[job.currentOperation - 1],
                                                           job.dueDate[job.currentOperation], env, setuptime,
-                                                          job.priority, seq_skip, normalization)
+                                                          job.priority, normalization)  # Calulate the job priorities
                     priority_list.append(job_queue_priority)
                     setup_time.append(setuptime)
-                ind_processing_job = priority_list.index(max(priority_list))
+                ind_processing_job = priority_list.index(max(priority_list))  # Get the job with the highest value
 
-            # ind_processing_job = 0
             next_job = machine.items[ind_processing_job]
+
             setuptime = setup_time[ind_processing_job]
-            tip = next_job.processingTime[next_job.currentOperation - 1] + setuptime
-            makespan[relative_machine] = set_makespan(makespan[relative_machine], next_job, last_job[relative_machine],
-                                                      env, setuptime)
-            utilization = utilization + setuptime + next_job.processingTime[next_job.currentOperation - 1]
+
+            time_in_processing = next_job.processingTime[
+                                     next_job.currentOperation - 1] + setuptime  # Total time the machine needs to process the job
+
+            makespan[relative_machine] = set_makespan(makespan[relative_machine], next_job, env, setuptime)
+
+            job_shop.utilization[(relative_machine, current_WC - 1)] = job_shop.utilization[(
+                relative_machine, current_WC - 1)] + setuptime + next_job.processingTime[next_job.currentOperation - 1]
+
             last_job[relative_machine] = next_job.type
-            machine.items.remove(next_job)
-            job_shop.job_allocation[next_job.number] = machine_number
-            job_shop.scheduleMachine[(relative_machine, current_WC - 1)].append([next_job.processingTime[next_job.currentOperation - 1], setuptime])
-            yield env.timeout(tip)
-            next_workstation(next_job, job_shop, env, min_job, max_job, max_wip)
+
+            machine.items.remove(next_job)  # Remove job from queue
+
+            job_shop.scheduleMachine[(relative_machine, current_WC - 1)].append([next_job.processingTime[
+                                                                                next_job.currentOperation - 1],
+                                                                            setuptime])
+            job_shop.job_per_machine[next_job.number][next_job.currentOperation - 1] = machine_number_WC[current_WC - 1][relative_machine]
+            yield env.timeout(time_in_processing)
+            next_workstation(next_job, job_shop, env, min_job, max_job, max_wip)  # Send the job to the next workstation
         else:
-            yield job_shop.condition_flag[(relative_machine, current_WC - 1)]
-            job_shop.condition_flag[(relative_machine, current_WC - 1)] = simpy.Event(env)
+            yield job_shop.condition_flag[
+                (relative_machine, current_WC - 1)]  # Used if there is currently no job in the machines queue
+            job_shop.condition_flag[(relative_machine, current_WC - 1)] = simpy.Event(env)  # Reset event if it is used
 
 
-def cfp_wc(env, last_job, machine, makespan, store, job_shop, currentWC, bid_skip, normalization):
+def cfp_wc(env, machine, store, job_shop, currentWC, normalization):
+    """Sends out the Call-For-Proposals to the various machines.
+    Represents the Job-Pool_agent"""
     while True:
         if store.items:
-            c = bid_winner(env, store.items, machinesPerWC[currentWC], currentWC + 1, job_shop, last_job, makespan,
-                           machine, store, bid_skip, normalization)
+            job_shop.QueuesWC[currentWC].append(
+                {ii: len(job_shop.machine_per_wc[(ii, currentWC)].items) for ii in
+                 range(machinesPerWC[currentWC])})  # Stores the Queue length of the JPA
+            c = bid_winner(env, store.items, machinesPerWC[currentWC], currentWC + 1, job_shop,
+                           machine, store, normalization)
             env.process(c)
-        tib = 0.5
+        tib = 0.5  # Frequency of when CFPs are sent out
         yield env.timeout(tib)
 
 
-def no_in_system(R):
-    """Total number of jobs in the resource R"""
-    return len(R.put_queue) + len(R.users)
-
-
-def source(env, number1, interval, job_shop, due_date_setting, rush_job_perc):
+def source(env, number1, interval, job_shop, due_date_setting, min_job, rush_job_perc):
+    """Reflects the Job Release Agent. Samples time and then "releases" a new
+    job into the system."""
     while True:  # Needed for infinite case as True refers to "until".
         ii = number1
         number1 += 1
-        job_shop.job_allocation.append(0)
+        job = New_Job('job%02d' % ii, env, ii, due_date_setting, job_shop, rush_job_perc)
+        if ii == min_job:
+            job_shop.start_time = env.now  # Start counting when the minimum number of jobs have entered the system
         job_shop.tardiness.append(-1)
         job_shop.flowtime.append(0)
-        job = New_Job('job%02d' % ii, env, ii, due_date_setting, job_shop, rush_job_perc)
+        job_shop.priority.append(0)
+        job_shop.job_per_machine.append(np.zeros(job.numberOfOperations))
         job_shop.WIP += 1
         firstWC = operationOrder[job.type - 1][0]
         store = job_shop.storeWC[firstWC - 1]
@@ -283,27 +289,36 @@ def source(env, number1, interval, job_shop, due_date_setting, rush_job_perc):
 
 
 class jobShop:
-    def __init__(self, env, weights):
-        self.machine_per_wc = {(ii, jj): Store(env) for jj in noOfWC for ii in range(machinesPerWC[jj])}
-        self.storeWC = {ii: FilterStore(env) for ii in noOfWC}
-        self.QueuesWC = {(ii, jj): [] for jj in noOfWC for ii in range(machinesPerWC[jj])}
-        self.scheduleMachine = {(ii, jj): [] for jj in noOfWC for ii in range(machinesPerWC[jj])}
-        self.makespanWC = {ii: np.zeros(machinesPerWC[ii]) for ii in noOfWC}
-        self.last_job_WC = {ii: np.zeros(machinesPerWC[ii]) for ii in noOfWC}
-        self.condition_flag = {(ii, jj): simpy.Event(env) for jj in noOfWC for ii in range(machinesPerWC[jj])}
+    """This class creates a job shop, along with everything that is needed to run the Simpy Environment."""
 
-        self.test_weights = weights
-        self.makespan = []
-        self.tardiness = []
-        self.WIP = 0
-        self.early_termination = 0
+    def __init__(self, env, weights_new):
+        self.machine_per_wc = {(ii, jj): Store(env) for jj in noOfWC for ii in
+                               range(machinesPerWC[jj])}  # Used to store jobs in a machine
+        self.storeWC = {ii: FilterStore(env) for ii in noOfWC}  # Used to store jobs in a JPA
+        self.QueuesWC = {jj: [] for jj in noOfWC}  # Can be used to keep track of Queue Lenghts
+        self.scheduleWC = {ii: [] for ii in noOfWC}  # Used to keep track of the schedule
+        self.makespanWC = {ii: np.zeros(machinesPerWC[ii]) for ii in
+                           noOfWC}  # Keeps track of the makespan of each machine
+        self.last_job_WC = {ii: np.zeros(machinesPerWC[ii]) for ii in
+                            noOfWC}  # Keeps track of which job was last in the machine
+        self.condition_flag = {(ii, jj): simpy.Event(env) for jj in noOfWC for ii in range(machinesPerWC[
+                                                                                               jj])}  # An event which keeps track if a machine has had a job inserted into it if it previously had no job
+        self.scheduleMachine = {(ii, jj): [] for jj in noOfWC for ii in
+                                range(machinesPerWC[jj])}
+        self.job_per_machine = []
+
+        self.test_weights = weights_new
+        self.flowtime = []  # Jobs flowtime
+        self.tardiness = []  # Jobs tardiness
+        self.WIP = 0  # Current WIP of the system
+        self.early_termination = 0  # Whether the simulation terminated earlier
         self.utilization = {(ii, jj): 0 for jj in noOfWC for ii in range(machinesPerWC[jj])}
+        self.finish_time = 0  # Finishing time of the system
+        self.totalWIP = []  # Keeps track of the total WIP of the system
 
-        self.bids = []
-        self.mean_WIP = []
-
-        self.job_allocation = []
-        self.workload = []
+        self.bids = []  # Keeps track of the bids
+        self.priority = []  # Keeps track of the job priorities
+        self.start_time = 0  # Starting time of the simulation
 
 
 class New_Job:
@@ -322,35 +337,25 @@ class New_Job:
         self.numberOfOperations = numberOfOperations[self.type - 1]
         p = random.choices([1, 0], weights=[rush_job_perc, 1 - rush_job_perc], k=1)
 
-        # print(job_shop.makespan[::(self.number + 1)])
         flowtime = np.mean([job_shop.flowtime[i] for i in range(self.number) if job_shop.flowtime[i] > 0])
         if math.isnan(flowtime):
             flowtime = 0
 
         due_date_reduction = p[0] * flowtime * 0.3
         reduction_factor = (sum(self.processingTime) * dueDateTightness - due_date_reduction) / (
-                    sum(self.processingTime) * dueDateTightness)
-        # print(reduction_factor)
+                sum(self.processingTime) * dueDateTightness)
         for ii in range(self.numberOfOperations):
-            # meanPT = processingTimes[self.type - 1][ii]
-            # self.processingTime[ii] = meanPT
             self.dueDate[ii + 1] = self.dueDate[ii] + (self.processingTime[ii] * dueDateTightness) * reduction_factor
 
 
-def do_simulation_with_weights(mean_weight_new, arrivalMean, due_date_tightness, bid_skip, seq_skip, normalization,
-                               min_job, max_job, max_wip, iter):
+def do_simulation_with_weights(mean_weight_new, arrivalMean, due_date_tightness, normalization,
+                               min_job, max_job, max_wip, rush_job_perc, iter):
     random.seed(iter)
-    for mm in range(sum(machinesPerWC)):
-        for jj in range(totalAttributes):
-            if (jj == noAttributes - 1) | (jj == noAttributesJob + noAttributes - 1) | (jj in bid_skip) | (
-                    jj in [x + noAttributes for x in seq_skip]):
-                mean_weight_new[mm][jj] = 0
 
-    # print(mean_weight_new)
-
-    env = Environment()
-    job_shop = jobShop(env, mean_weight_new)
-    env.process(source(env, number, arrivalMean, job_shop, due_date_tightness, 0.0))
+    env = Environment()  # Create Environment
+    job_shop = jobShop(env, mean_weight_new)  # Initiate the job shop
+    env.process(source(env, 0, arrivalMean, job_shop, due_date_tightness,
+                       min_job, 0))  # Starts the source (Job Release Agent)
 
     for wc in range(len(machinesPerWC)):
         last_job = job_shop.last_job_WC[wc]
@@ -358,27 +363,25 @@ def do_simulation_with_weights(mean_weight_new, arrivalMean, due_date_tightness,
         store = job_shop.storeWC[wc]
 
         env.process(
-            cfp_wc(env, last_job, job_shop.machine_per_wc, makespanWC, store, job_shop, wc, bid_skip, normalization))
+            cfp_wc(env, job_shop.machine_per_wc, store, job_shop, wc, normalization))
 
         for ii in range(machinesPerWC[wc]):
             machine = job_shop.machine_per_wc[(ii, wc)]
-            utilization = job_shop.utilization[(ii, wc)]
 
             env.process(
-                machine_processing(job_shop, wc + 1, machine_number_WC[wc][ii], env, mean_weight_new, ii, last_job,
-                                   machine, makespanWC, seq_skip, utilization, normalization, min_job, max_job,
-                                   max_wip))
-
+                machine_processing(job_shop, wc + 1, machine_number_WC[wc][ii], env, mean_weight_new, last_job,
+                                   machine, makespanWC, min_job, max_job, normalization, max_wip))
     job_shop.end_event = env.event()
 
-    env.run(until=job_shop.end_event)
+    env.run(until=job_shop.end_event)  # Run the simulation until the end event gets triggered
     objective = np.nanmean(job_shop.tardiness[min_job:max_job]) + 0.01 * max(job_shop.tardiness[min_job:max_job])
     tard = job_shop.tardiness[min_job:max_job]
 
     random.seed(iter)
-    env = Environment()
-    job_shop = jobShop(env, mean_weight_new)
-    env.process(source(env, number, arrivalMean, job_shop, due_date_tightness, 0.05))
+    env = Environment()  # Create Environment
+    job_shop = jobShop(env, mean_weight_new)  # Initiate the job shop
+    env.process(source(env, 0, arrivalMean, job_shop, due_date_tightness,
+                       min_job, rush_job_perc))  # Starts the source (Job Release Agent)
 
     for wc in range(len(machinesPerWC)):
         last_job = job_shop.last_job_WC[wc]
@@ -386,20 +389,17 @@ def do_simulation_with_weights(mean_weight_new, arrivalMean, due_date_tightness,
         store = job_shop.storeWC[wc]
 
         env.process(
-            cfp_wc(env, last_job, job_shop.machine_per_wc, makespanWC, store, job_shop, wc, bid_skip, normalization))
+            cfp_wc(env, job_shop.machine_per_wc, store, job_shop, wc, normalization))
 
         for ii in range(machinesPerWC[wc]):
             machine = job_shop.machine_per_wc[(ii, wc)]
-            utilization = job_shop.utilization[(ii, wc)]
 
             env.process(
-                machine_processing(job_shop, wc + 1, machine_number_WC[wc][ii], env, mean_weight_new, ii, last_job,
-                                   machine, makespanWC, seq_skip, utilization, normalization, min_job, max_job,
-                                   max_wip))
-
+                machine_processing(job_shop, wc + 1, machine_number_WC[wc][ii], env, mean_weight_new, last_job,
+                                   machine, makespanWC, min_job, max_job, normalization, max_wip))
     job_shop.end_event = env.event()
 
-    env.run(until=job_shop.end_event)
+    env.run(until=job_shop.end_event)  # Run the simulation until the end event gets triggered
     objective1 = np.nanmean(job_shop.tardiness[min_job:max_job]) + 0.01 * max(job_shop.tardiness[min_job:max_job])
     tard1 = job_shop.tardiness[min_job:max_job]
 
@@ -409,16 +409,16 @@ def do_simulation_with_weights(mean_weight_new, arrivalMean, due_date_tightness,
         stability[0] += np.abs(tard1[i] - tard[i])
     for w in noOfWC:
         for m in range(machinesPerWC[w]):
-            print(np.sum(job_shop.scheduleMachine[(m, w)]))
+            print(np.sum(job_shop.scheduleMachine[(m, w)], axis=0))
+
+    print(job_shop.job_per_machine)
     # print(a)
     # print(tard)
     # print(tard1)
     return robustness, stability
 
+
 if __name__ == '__main__':
-    # df = pd.read_csv('Runs/Attribute_Runs/Run-Weights-NoDD-85-4-5000.csv', header=None)
-    # weights = df.values.tolist()
-    #
 
     arrival_time = [1.5429, 1.5429, 1.4572, 1.4572, 1.3804, 1.3804]
     utilization = [85, 85, 90, 90, 95, 95]
@@ -427,17 +427,6 @@ if __name__ == '__main__':
     min_jobs = [499, 499, 999, 999, 1499, 1499]
     max_jobs = [2499, 2499, 2999, 2999, 3499, 3499]
     wip_max = [150, 150, 200, 200, 300, 300]
-
-    # skip_bid = [[7, 7], [0, 7], [1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [7, 7], [7, 7], [7, 7]]
-    # skip_seq = [[3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [0, 3], [1, 3], [2, 3]]
-
-    skip_bid = [[7, 7]]
-    skip_seq = [[3, 3]]
-
-    # skip_bid = [[7, 7], [2, 7], [4, 7]]
-    # skip_seq = [[3, 3], [3, 3], [3, 3]]
-
-    # normaliziation = [[-250, 150, -25, 12, -250, 150], [-275, 150, -28, 12, -275, 150], [-325, 150, -32, 12, -325, 150], [-350, 150, -35, 12, -350, 150]]
 
     normaliziation = [[-75, 150, -8, 12, -75, 150], [-30, 150, -3, 12, -30, 150], [-200, 150, -15, 12, -200, 150],
                       [-75, 150, -8, 12, -75, 150], [-300, 150, -50, 12, -300, 150], [-150, 150, -15, 12, -150, 150]]
@@ -449,27 +438,23 @@ if __name__ == '__main__':
     # final_result = np.zeros((no_runs, len(skip_seq)))
 
     for j in range(1):
-        final_result = np.zeros((no_runs, len(skip_seq)))
-        for i, (skip_b, skip_s) in enumerate(zip(skip_bid, skip_seq)):
-            str1 = "Runs/Final_runs/Run-weights-" + str(utilization[i]) + "-" + str(due_date_settings[i]) + ".csv"
-            df = pd.read_csv(str1, header=None)
-            weights = df.values.tolist()
-            # print(weights)
-            # print(weights)
-            obj = np.zeros(no_runs)
-            jobshop_pool = Pool(processes=no_runs)
-            seeds = range(no_runs)
-            func1 = partial(do_simulation_with_weights, weights, arrival_time[j], due_date_settings[j], skip_b, skip_s,
-                            normaliziation[j], min_jobs[j], max_jobs[j], wip_max[j])
-            makespan_per_seed = jobshop_pool.map(func1, seeds)
-            # print(makespan_per_seed)
-            for h in range(no_runs):
-                print(makespan_per_seed)
-                # final_result.append(makespan_per_seed[h])
-            #     final_result[h][i] = makespan_per_seed[h][0]
-            #     stability[]
-            #
-            # print(np.mean(final_result))
+        str1 = "Runs/Final_runs/Run-weights-" + str(utilization[j]) + "-" + str(due_date_settings[j]) + ".csv"
+        df = pd.read_csv(str1, header=None)
+        weights = df.values.tolist()
+        obj = np.zeros(no_runs)
+        jobshop_pool = Pool(processes=no_runs)
+        seeds = range(no_runs)
+        func1 = partial(do_simulation_with_weights, weights, arrival_time[j], due_date_settings[j],
+                        normaliziation[j], min_jobs[j], max_jobs[j], wip_max[j], 0.05)
+        makespan_per_seed = jobshop_pool.map(func1, seeds)
+        # print(makespan_per_seed)
+        for h in range(no_runs):
+            print(makespan_per_seed)
+            # final_result.append(makespan_per_seed[h])
+        #     final_result[h][i] = makespan_per_seed[h][0]
+        #     stability[]
+        #
+        # print(np.mean(final_result))
 
         # filename2 = 'Results/Tardiness_85_4.csv'
         # filename2 = "Results/Attributes_Final_" + str(utilization[j]) + "-" + str(due_date_settings[j]) + ".csv"

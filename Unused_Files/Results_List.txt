@@ -1,3 +1,0 @@
-Results/FCFS_95_4_New.txt
-Results/EDD_95_4_New.txt
-Results/Custom_95_4_New.txt

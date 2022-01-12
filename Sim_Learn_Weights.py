@@ -535,7 +535,6 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, bid_s
             mean_tardiness[j] = makespan_per_seed[h][2]
             max_tardiness[j] = makespan_per_seed[h][3]
 
-        # print(objective)
         objective_norm = np.zeros((population_size, 2))
         # Normalise the current populations performance
         for ii in range(population_size):
@@ -569,8 +568,6 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, bid_s
                 v_hat_t = (v_t_mean[m][j] / (1 - beta_2 ** t))
                 mean_weight[m][j] = mean_weight[m][j] - (alpha_mean * m_hat_t) / (np.sqrt(v_hat_t) + 10 ** -8)
 
-                # std_weight[m][j] = std_weight[m][j] - alpha_std * delta_std_final[m][j]
-                #
                 m_t_std[m][j] = (beta_1 * m_t_std[m][j] + (1 - beta_1) * delta_std_final[m][j])
                 v_t_std[m][j] = (beta_2 * v_t_std[m][j] + (1 - beta_2) * delta_std_final[m][j] ** 2)
                 m_hat_t_1 = (m_t_std[m][j] / (1 - beta_1 ** t))
@@ -604,11 +601,6 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, bid_s
             writer.writerows(mean_weight)
             file2.close()
 
-            # file3 = open('filename3', 'w')
-            # writer = csv.writer(file3)
-            # writer.writerows(std_weight)
-            # file3.close()
-
 
 if __name__ == '__main__':
     arrival_time = [1.5429, 1.5429, 1.4572, 1.4572, 1.3804, 1.3804]
@@ -630,14 +622,6 @@ if __name__ == '__main__':
     skip_bid = [[7, 7], [2, 7], [4, 7], [5, 7]]
     skip_seq = [[3, 3], [3, 3], [3, 3], [3, 3]]
 
-    # skip_bid = [[7, 7], [2, 7], [4, 7], [5, 7]]
-    # skip_seq = [[3, 3], [3, 3], [3, 3], [3, 3]]
-
-    # skip = [[1, 2, 3, 4, 6, 7, 8], [0, 1, 2, 3, 4, 5, 6, 7, 8], [0, 1, 2, 3, 4, 5, 6, 7, 8], [0, 1, 2, 3, 4, 5, 6, 7, 8]]
-
-    # skip_bid = [[7, 7], [4, 7], [5, 7]]
-    # skip_seq = [[3, 3], [3, 3], [3, 3]]
-
     for a in range(4, 5):
         for skip in range(1):
             for n in range(len(normaliziation)):
@@ -653,20 +637,3 @@ if __name__ == '__main__':
                     skip_seq[skip]) + str(n)
                 run_linear(str1, str2, arrival_time[a], due_date_settings[a], learning_decay_rate[3], skip_bid[skip],
                            skip_seq[skip], normaliziation[n], min_jobs[a], max_jobs[a], wip_max[a])
-
-    # # to run GUI event loop
-    # dat = [0, 1]
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111)
-    # Ln, = ax.plot(dat)
-    # ax.set_xlim([0, 1000])
-    # ax.set_ylim([0, 150])
-    # plt.ion()
-    # plt.show()
-    #
-    # # setting title
-    # plt.title("Mean objective function", fontsize=20)
-    #
-    # # setting x-axis label and y-axis label
-    # plt.xlabel("No. of iterations")
-    # plt.ylabel("Obejctive Function")
