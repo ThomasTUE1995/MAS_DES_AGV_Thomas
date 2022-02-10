@@ -25,7 +25,14 @@ processingTimes = [[6.75, 3.75, 2.5, 7.5], [3.75, 5.0, 7.5], [3.75, 2.5, 8.75, 5
 operationOrder = [[3, 1, 2, 5], [4, 1, 3], [2, 5, 1, 4, 3]]  # Workcenter per operations
 numberOfOperations = [4, 3, 5]  # Number of operations per job type
 machinesPerWC = [4, 2, 5, 3, 2]  # Number of machines per workcenter
-machine_number_WC = [[1, 2, 3, 4], [5, 6], [7, 8, 9, 10, 11], [12, 13, 14], [15, 16]]  # Index of machines
+
+machine_number_WC = [[1, 2, 3, 4],
+                     [5, 6],
+                     [7, 8, 9, 10, 11],
+                     [12, 13, 14],
+                     [15, 16]]  # Index of machines
+
+
 setupTime = [[0, 0.625, 1.25], [0.625, 0, 0.8], [1.25, 0.8, 0]]  # Setuptypes from one job type to another
 demand = [0.2, 0.5, 0.3]
 noOfWC = range(len(machinesPerWC))
@@ -151,7 +158,7 @@ def next_workstation(job, job_shop, env, min_job, max_job, max_wip):
                 job_shop.finish_time = env.now
                 job_shop.end_event.succeed()
 
-        if (job_shop.WIP > max_wip) | (env.now > 7_000):
+        if (job_shop.WIP > max_wip) | (env.now > 10_000):
             job_shop.end_event.succeed()
             job_shop.early_termination = 1
             job_shop.finish_time = env.now
@@ -260,7 +267,6 @@ def source(env, number1, interval, job_shop, due_date_setting, min_job):
         number1 += 1
         job = New_Job('job%02d' % ii, env, ii, due_date_setting)
 
-
         if ii == min_job:
             job_shop.start_time = env.now  # Start counting when the minimum number of jobs have entered the system
         job_shop.tardiness.append(-1)
@@ -322,10 +328,11 @@ class New_Job:
         self.dueDate[0] = env.now
         self.operationOrder = operationOrder[self.type - 1]
         self.numberOfOperations = numberOfOperations[self.type - 1]
+        ddt = random.uniform(dueDateTightness, dueDateTightness + 5)
         for ii in range(self.numberOfOperations):
             meanPT = processingTimes[self.type - 1][ii]
             self.processingTime[ii] = meanPT
-            self.dueDate[ii + 1] = self.dueDate[ii] + self.processingTime[ii] * dueDateTightness
+            self.dueDate[ii + 1] = self.dueDate[ii] + self.processingTime[ii] * ddt
 
 
 def get_objectives(job_shop, min_job, max_job, early_termination):
@@ -386,9 +393,12 @@ def get_objectives(job_shop, min_job, max_job, early_termination):
         # WIP Level
         mean_WIP = np.mean(job_shop.totalWIP)
 
-    print(no_tardy_jobs_p1)
-    print(no_tardy_jobs_p2)
-    print(no_tardy_jobs_p3)
+    print("Early termination", job_shop.early_termination)
+    print("Tardy jobs prio 1", no_tardy_jobs_p1)
+    print("Tardy jobs prio 2", no_tardy_jobs_p2)
+    print("Tardy jobs prio 3", no_tardy_jobs_p3)
+    print("Flow time", flow_time)
+    print("Mean Tardiness", mean_tardiness)
 
     return makespan, flow_time, mean_tardiness, max_tardiness, no_tardy_jobs_p1 / total_p1, no_tardy_jobs_p2 / total_p2, no_tardy_jobs_p3 / total_p2, mean_WIP, early_term
 
@@ -398,12 +408,14 @@ def do_simulation_with_weights(mean_weight_new, arrivalMean, due_date_tightness,
     """ This runs a single simulation"""
     random.seed(iter1)
 
+    print(random.uniform(1, 2))
+
     env = Environment()  # Create Environment
     job_shop = jobShop(env, mean_weight_new)  # Initiate the job shop
     env.process(source(env, 0, arrivalMean, job_shop, due_date_tightness,
                        min_job))  # Starts the source (Job Release Agent)
 
-    
+
 
 
 
@@ -471,7 +483,7 @@ if __name__ == '__main__':
             func1 = partial(do_simulation_with_weights, weights, arrival_time[i], due_date_settings[i],
                             min_jobs[i], max_jobs[i], normaliziation[i], wip_max[i])
             makespan_per_seed = jobshop_pool.map(func1, seeds)
-            print(makespan_per_seed)
+            # print(makespan_per_seed)
             for h, o in itertools.product(range(no_processes), range(9)):
                 final_result[h + j * no_processes][o] = makespan_per_seed[h][o]
 
