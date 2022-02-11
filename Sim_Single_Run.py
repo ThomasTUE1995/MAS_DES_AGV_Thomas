@@ -393,12 +393,14 @@ def get_objectives(job_shop, min_job, max_job, early_termination):
         # WIP Level
         mean_WIP = np.mean(job_shop.totalWIP)
 
+    print("")
     print("Early termination", job_shop.early_termination)
     print("Tardy jobs prio 1", no_tardy_jobs_p1)
     print("Tardy jobs prio 2", no_tardy_jobs_p2)
     print("Tardy jobs prio 3", no_tardy_jobs_p3)
     print("Flow time", flow_time)
     print("Mean Tardiness", mean_tardiness)
+    print("")
 
     return makespan, flow_time, mean_tardiness, max_tardiness, no_tardy_jobs_p1 / total_p1, no_tardy_jobs_p2 / total_p2, no_tardy_jobs_p3 / total_p2, mean_WIP, early_term
 
@@ -408,16 +410,10 @@ def do_simulation_with_weights(mean_weight_new, arrivalMean, due_date_tightness,
     """ This runs a single simulation"""
     random.seed(iter1)
 
-    print(random.uniform(1, 2))
-
     env = Environment()  # Create Environment
     job_shop = jobShop(env, mean_weight_new)  # Initiate the job shop
     env.process(source(env, 0, arrivalMean, job_shop, due_date_tightness,
                        min_job))  # Starts the source (Job Release Agent)
-
-
-
-
 
     for wc in range(len(machinesPerWC)):
         last_job = job_shop.last_job_WC[wc]
