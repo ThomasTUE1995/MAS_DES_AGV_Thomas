@@ -1,3 +1,4 @@
+
 """
 DES of the MAS. This DES is used to optimize certain aspects of the
 MAS such as the bids. It can be used to quickly run multiple experiments.
@@ -8,6 +9,7 @@ import random
 from collections import defaultdict
 from functools import partial
 from pathos.multiprocessing import ProcessingPool as Pool
+from matplotlib import pyplot as plt, rcParams
 
 import numpy as np
 import pandas as pd
@@ -25,14 +27,7 @@ processingTimes = [[6.75, 3.75, 2.5, 7.5], [3.75, 5.0, 7.5], [3.75, 2.5, 8.75, 5
 operationOrder = [[3, 1, 2, 5], [4, 1, 3], [2, 5, 1, 4, 3]]  # Workcenter per operations
 numberOfOperations = [4, 3, 5]  # Number of operations per job type
 machinesPerWC = [4, 2, 5, 3, 2]  # Number of machines per workcenter
-
-machine_number_WC = [[1, 2, 3, 4],
-                     [5, 6],
-                     [7, 8, 9, 10, 11],
-                     [12, 13, 14],
-                     [15, 16]]  # Index of machines
-
-
+machine_number_WC = [[1, 2, 3, 4], [5, 6], [7, 8, 9, 10, 11], [12, 13, 14], [15, 16]]  # Index of machines
 setupTime = [[0, 0.625, 1.25], [0.625, 0, 0.8], [1.25, 0.8, 0]]  # Setuptypes from one job type to another
 demand = [0.2, 0.5, 0.3]
 noOfWC = range(len(machinesPerWC))
@@ -41,90 +36,6 @@ noOfWC = range(len(machinesPerWC))
 noAttributes = 8
 noAttributesJob = 4
 totalAttributes = noAttributes + noAttributesJob
-
-
-# DEBUG PRINTING
-DEBUG = False
-
-
-def debug(debug_type, env, job=None, WC=None, ma_number=None, agv_number=None, machine_loc=None, agv_loc=None):
-    if DEBUG:
-        if debug_type == 1:
-            print("CT:", round(env.now, 3), "-", job.name, "entered system ( type", job.type, ")",
-                  "and will be processed first at WC:", WC)
-
-        elif debug_type == 2:
-            print("CT:", round(env.now, 3), "-", "JPA WC", WC, ": Sended CFPs to MAs!")
-
-        elif debug_type == 3:
-            print("CT:", round(env.now, 3), "-", "APA WC", WC, ": Sended CFPs to AGVs!")
-
-        elif debug_type == 4:
-            print("CT:", round(env.now, 3), "-", "JPA WC", WC, ": CFP done!", job.name,
-                  "will be processed on MA", ma_number, "WC", WC, machine_loc)
-
-        elif debug_type == 5:
-            print("CT:", round(env.now, 3), "-", "JPA WC", WC, ": Job stored in APA", WC, "queue")
-
-        elif debug_type == 6:
-            print("CT:", round(env.now, 3), "-", "JPA WC", WC, ":", job.name, "removed from JPA", WC, "queue")
-
-        elif debug_type == 7:
-            print("CT:", round(env.now, 3), "-", "APA WC", WC, ": CFP done!", job.name, "linked to AGV",
-                  agv_number, "WC", WC)
-
-        elif debug_type == 8:
-            print("CT:", round(env.now, 3), "-", "APA WC", WC, ":", job.name, "removed from APA", WC, "queue")
-
-        elif debug_type == 9:
-            print("CT:", round(env.now, 3), "-", "AGV", agv_number, "WC", WC, "at", agv_loc,
-                  ": I will pick", job.name, "which is at location", job.location)
-
-        elif debug_type == 10:
-            print("CT:", round(env.now, 3), "-", "AGV", agv_number, "WC", WC, "at", agv_loc, ":", job.name,
-                  "picked up!")
-
-        elif debug_type == 11:
-            print("CT:", round(env.now, 3), "-", "AGV", agv_number, "WC", WC, "at", agv_loc,
-                  ": I will bring", job.name, "to MA", ma_number, "WC", WC, job.cfp_wc_ma_result)
-
-        elif debug_type == 12:
-            print("CT:", round(env.now, 3), "-", "AGV", agv_number, "WC", WC, "at", agv_loc,
-                  ": I will bring", job.name,
-                  "to depot")
-
-        elif debug_type == 13:
-            print("CT:", round(env.now, 3), "-", "AGV", agv_number, "WC", WC, "at", agv_loc,
-                  ":", job.name, "loaded on MA", ma_number, "WC", WC)
-
-        elif debug_type == 14:
-            print("CT:", round(env.now, 3), "-", "AGV", agv_number, "WC", WC, "at", agv_loc, ":",
-                  job.name, "dropped at depot")
-
-        elif debug_type == 15:
-            print("CT:", round(env.now, 3), "-", "MA", ma_number, "WC", WC, job.name,
-                  "not at machine")
-
-        elif debug_type == 16:
-            print("CT:", round(env.now, 3), "-", "MA", ma_number, "WC", WC, job.name,
-                  "at machine")
-
-        elif debug_type == 17:
-            print("CT:", round(env.now, 3), "-", "MA", ma_number, "WC", WC, ": Start processing",
-                  job.name)
-
-        elif debug_type == 18:
-            print("CT:", round(env.now, 3), "-", "MA", ma_number, "WC", WC, ": Finished processing of",
-                  job.name)
-
-        elif debug_type == 19:
-            pass
-
-        elif debug_type == 20:
-            pass
-
-
-
 
 
 def list_duplicates(seq):
@@ -150,16 +61,18 @@ def bid_winner(env, jobs, noOfMachines, currentWC, job_shop, machine, store,
     for jj in range(no_of_jobs):
         total_rp[jj] = (remain_processing_time(jobs[jj]))
 
+    queue_length = np.zeros(noOfMachines)
     # Get the bids for all machines
     for jj in range(noOfMachines):
-        queue_length = len(machine[(jj, currentWC - 1)].items)
+        # expected_start = 0
+        queue_length[jj] = len(machine[(jj, currentWC - 1)].items)
         new_bid = [0] * no_of_jobs
         for ii, job in enumerate(jobs):
             attributes = bid_calculation(job_shop.test_weights, machine_number_WC[currentWC - 1][jj],
                                          job.processingTime[job.currentOperation - 1], job.currentOperation,
                                          total_rp[ii], job.dueDate[job.numberOfOperations],
                                          env.now,
-                                         job.priority, queue_length, normaliziation_range)
+                                         job.priority, queue_length[jj], normaliziation_range)
 
             new_bid[ii] = attributes
 
@@ -174,7 +87,7 @@ def bid_winner(env, jobs, noOfMachines, currentWC, job_shop, machine, store,
         bestbid = current_bid[bestmachine]
 
         for ii in dup[1]:
-            if bestbid <= current_bid[ii]:
+            if bestbid < current_bid[ii]:
                 bestbid = current_bid[ii]
                 bestmachine = ii
 
@@ -185,15 +98,8 @@ def bid_winner(env, jobs, noOfMachines, currentWC, job_shop, machine, store,
     for ii, vv in enumerate(best_job):
         put_job_in_queue(currentWC, best_bid[ii], jobs[vv], job_shop, machine)
 
-        machine_loc = (best_bid[ii], currentWC - 1)
-        ma_number = machine_number_WC[currentWC - 1][best_bid[ii]]
-
-        debug(4, env, jobs[vv], currentWC, ma_number, None, machine_loc, None)
-        debug(5, env, jobs[vv], currentWC, None, None, None, None)
-
     # Remove job from queue of the JPA
     for ii in reversed(best_job):
-        debug(6, env, jobs[ii], currentWC, None, None, None, None)
         yield store.get(lambda mm: mm == jobs[ii])
 
 
@@ -203,20 +109,14 @@ def bid_calculation(weights_new, machinenumber, processing_time,
     """Calulcates the bidding value of a job."""
     attribute = [0] * noAttributes
     attribute[0] = processing_time / 8.75 * weights_new[machinenumber - 1][0]  # processing time
-
     attribute[1] = (current - 1) / (5 - 1) * weights_new[machinenumber - 1][1]  # remaing operations
     attribute[2] = (due_date - now - normalization[0]) / (normalization[1] - normalization[0]) * \
                    weights_new[machinenumber - 1][2]  # slack
-
-
     attribute[3] = total_rp / 21.25 * weights_new[machinenumber - 1][3]  # remaining processing time
-
     attribute[4] = (((due_date - now) / total_rp) - normalization[2]) / (normalization[3] - normalization[2]) * \
                    weights_new[machinenumber - 1][4]  # Critical Ratio
     attribute[5] = (job_priority - 1) / (10 - 1) * weights_new[machinenumber - 1][5]  # Job Priority
     attribute[6] = queue_length / 25 * weights_new[machinenumber - 1][6]  # Queue length
-
-
     attribute[7] = 0
 
     return sum(attribute)
@@ -249,13 +149,12 @@ def next_workstation(job, job_shop, env, min_job, max_job, max_wip):
         job_shop.WIP -= 1
         job_shop.priority[job.number] = job.priority
         job_shop.flowtime[job.number] = finish_time - job.dueDate[0]
-        # finished_job += 1
         if job.number > max_job:
             if np.count_nonzero(job_shop.flowtime[min_job:max_job]) == 2000:
                 job_shop.finish_time = env.now
                 job_shop.end_event.succeed()
 
-        if (job_shop.WIP > max_wip) | (env.now > 10_000):
+        if (job_shop.WIP > max_wip) | (env.now > 7_000):
             job_shop.end_event.succeed()
             job_shop.early_termination = 1
             job_shop.finish_time = env.now
@@ -300,10 +199,8 @@ def machine_processing(job_shop, current_WC, machine_number, env, weights_new, l
     """This refers to a Machine Agent in the system. It checks which jobs it wants to process
     next and stores relevant information regarding it."""
     while True:
-
         relative_machine = machine_number_WC[current_WC - 1].index(machine_number)
         if machine.items:
-
             setup_time = []
             priority_list = []
             if not last_job[relative_machine]:  # Only for the first job
@@ -326,19 +223,13 @@ def machine_processing(job_shop, current_WC, machine_number, env, weights_new, l
                                      next_job.currentOperation - 1] + setuptime  # Total time the machine needs to process the job
 
             makespan[relative_machine] = set_makespan(makespan[relative_machine], next_job, env, setuptime)
-
-            if next_job.number >= min_job:
-                job_shop.utilization[(relative_machine, current_WC - 1)] = job_shop.utilization[(
-                    relative_machine, current_WC - 1)] + setuptime + next_job.processingTime[next_job.currentOperation - 1]
-
+            job_shop.utilization[(relative_machine, current_WC - 1)] = job_shop.utilization[(
+                relative_machine, current_WC - 1)] + setuptime + next_job.processingTime[next_job.currentOperation - 1]
             last_job[relative_machine] = next_job.type
 
             machine.items.remove(next_job)  # Remove job from queue
-            debug(17, env, next_job, current_WC, machine_number, None, None, None)
-
             yield env.process(machine_proc_res(machine_res, time_in_processing, env))
-
-            debug(18, env, next_job, current_WC, machine_number, None, None, None)
+            # yield env.timeout(time_in_processing)
             next_workstation(next_job, job_shop, env, min_job, max_job, max_wip)  # Send the job to the next workstation
         else:
             yield job_shop.condition_flag[
@@ -352,25 +243,19 @@ def machine_proc_res(machine_resource, time_in_processing, env):
         yield env.timeout(time_in_processing)
 
 
-
-
 def cfp_wc(env, machine, store, job_shop, currentWC, normalization):
     """Sends out the Call-For-Proposals to the various machines.
     Represents the Job-Pool_agent"""
-
     while True:
-
         if store.items:
-            debug(2, env, None, currentWC, None, None, None, None)
-            job_shop.QueuesWC[currentWC-1].append(
-                {ii: len(job_shop.machine_per_wc[(ii, currentWC-1)].items) for ii in
-                 range(machinesPerWC[currentWC-1])})  # Stores the Queue length of the JPA
-            c = bid_winner(env, store.items, machinesPerWC[currentWC-1], currentWC , job_shop,
+            for ii in range(machinesPerWC[currentWC]):
+                job_shop.QueuesWC[currentWC][ii].append((len(job_shop.machine_per_wc[(ii, currentWC)].items)))
+
+                # {ii: len(job_shop.machine_per_wc[(ii, currentWC)].items) for ii in
+                #  range(machinesPerWC[currentWC])})  # Stores the Queue length of the JPA
+            c = bid_winner(env, store.items, machinesPerWC[currentWC], currentWC + 1, job_shop,
                            machine, store, normalization)
             env.process(c)
-
-
-
         tib = 0.5  # Frequency of when CFPs are sent out
         yield env.timeout(tib)
 
@@ -379,12 +264,9 @@ def source(env, number1, interval, job_shop, due_date_setting, min_job):
     """Reflects the Job Release Agent. Samples time and then "releases" a new
     job into the system."""
     while True:  # Needed for infinite case as True refers to "until".
-
         ii = number1
-
         number1 += 1
         job = New_Job('job%02d' % ii, env, ii, due_date_setting)
-
         if ii == min_job:
             job_shop.start_time = env.now  # Start counting when the minimum number of jobs have entered the system
         job_shop.tardiness.append(-1)
@@ -392,12 +274,8 @@ def source(env, number1, interval, job_shop, due_date_setting, min_job):
         job_shop.priority.append(0)
         job_shop.WIP += 1
         firstWC = operationOrder[job.type - 1][0]
-
         store = job_shop.storeWC[firstWC - 1]
         store.put(job)
-
-        debug(1, env, job, firstWC, None, None, None, None)
-
         tib = random.expovariate(1.0 / interval)
         yield env.timeout(tib)
 
@@ -408,12 +286,11 @@ class jobShop:
     def __init__(self, env, weights_new):
         self.machine_per_wc = {(ii, jj): Store(env) for jj in noOfWC for ii in
                                range(machinesPerWC[jj])}  # Used to store jobs in a machine
-
-        self.machine_process_per_wc = {(ii, jj): Resource(env, capacity=1) for jj in noOfWC
-                                       for ii in range(machinesPerWC[jj])}
-
+        self.machine_process = {(ii, jj): Resource(env) for jj in noOfWC for ii in
+                                range(machinesPerWC[jj])}  # Used to store jobs in a machine
         self.storeWC = {ii: FilterStore(env) for ii in noOfWC}  # Used to store jobs in a JPA
-        self.QueuesWC = {jj: [] for jj in noOfWC}  # Can be used to keep track of Queue Lenghts
+        self.QueuesWC = {jj: {ii: [] for ii in
+                              range(machinesPerWC[jj])} for jj in noOfWC}  # Can be used to keep track of Queue Lengths
         self.scheduleWC = {ii: [] for ii in noOfWC}  # Used to keep track of the schedule
         self.makespanWC = {ii: np.zeros(machinesPerWC[ii]) for ii in
                            noOfWC}  # Keeps track of the makespan of each machine
@@ -453,7 +330,6 @@ class New_Job:
         self.dueDate[0] = env.now
         self.operationOrder = operationOrder[self.type - 1]
         self.numberOfOperations = numberOfOperations[self.type - 1]
-        ddt = random.uniform(dueDateTightness, dueDateTightness + 5)
         for ii in range(self.numberOfOperations):
             meanPT = processingTimes[self.type - 1][ii]
             self.processingTime[ii] = meanPT
@@ -471,7 +347,7 @@ def get_objectives(job_shop, min_job, max_job, early_termination):
     early_term = 0
     if early_termination == 1:
         early_term += 1
-        makespan = job_shop.finish_time - job_shop.start_time
+        makespan = job_shop.finish_time - job_shop.start_time + 10_000
         flow_time = np.nanmean(job_shop.flowtime[min_job:max_job]) + 10_000 - np.count_nonzero(
             job_shop.flowtime[min_job:max_job])
         mean_tardiness = np.nanmean(np.nonzero(job_shop.tardiness[min_job:max_job])) + 10_000 - np.count_nonzero(
@@ -518,28 +394,7 @@ def get_objectives(job_shop, min_job, max_job, early_termination):
         # WIP Level
         mean_WIP = np.mean(job_shop.totalWIP)
 
-    # Machines utilizations
-    machine_utilizations_summed = []
-
-    for wc in range(len(machinesPerWC)):
-        for ii in range(machinesPerWC[wc]):
-            utilization_machine = job_shop.utilization[(ii, wc)] / (job_shop.finish_time - job_shop.start_time)
-            machine_utilizations_summed.append(utilization_machine)
-            print("(",ii,wc,")", utilization_machine)
-            #print(job_shop.utilization[(ii, wc)] / (job_shop.finish_time - job_shop.start_time))
-
-    machine_utilizations = (sum(machine_utilizations_summed) / len(machine_utilizations_summed))
-
-    """print("")
-    print("Early termination", job_shop.early_termination)
-    print("Tardy jobs prio 1", no_tardy_jobs_p1)
-    print("Tardy jobs prio 2", no_tardy_jobs_p2)
-    print("Tardy jobs prio 3", no_tardy_jobs_p3)
-    print("Flow time", flow_time)
-    print("Mean Tardiness", mean_tardiness)
-    print("")"""
-
-    return makespan, flow_time, mean_tardiness, max_tardiness, no_tardy_jobs_p1 / total_p1, no_tardy_jobs_p2 / total_p2, no_tardy_jobs_p3 / total_p2, mean_WIP, early_term, machine_utilizations
+    return makespan, flow_time, mean_tardiness, max_tardiness, no_tardy_jobs_p1 / total_p1, no_tardy_jobs_p2 / total_p2, no_tardy_jobs_p3 / total_p2, mean_WIP, early_term
 
 
 def do_simulation_with_weights(mean_weight_new, arrivalMean, due_date_tightness, min_job, max_job,
@@ -558,60 +413,37 @@ def do_simulation_with_weights(mean_weight_new, arrivalMean, due_date_tightness,
         store = job_shop.storeWC[wc]
 
         env.process(
-            cfp_wc(env, job_shop.machine_per_wc, store, job_shop, wc + 1, normalization))
+            cfp_wc(env, job_shop.machine_per_wc, store, job_shop, wc, normalization))
 
         for ii in range(machinesPerWC[wc]):
             machine = job_shop.machine_per_wc[(ii, wc)]
-            machine_res = job_shop.machine_process_per_wc[(ii, wc)]
+            machine_res = job_shop.machine_process[(ii, wc)]
 
             env.process(
                 machine_processing(job_shop, wc + 1, machine_number_WC[wc][ii], env, mean_weight_new, last_job,
                                    machine, makespanWC, min_job, max_job, normalization, max_wip, machine_res))
-
-
     job_shop.end_event = env.event()
-
-
 
     env.run(until=job_shop.end_event)  # Run the simulation until the end event gets triggered
 
-    makespan, flow_time, mean_tardiness, max_tardiness, no_tardy_jobs_p1, no_tardy_jobs_p2, no_tardy_jobs_p3, mean_WIP, early_term, utilization_result = get_objectives(
+    makespan, flow_time, mean_tardiness, max_tardiness, no_tardy_jobs_p1, no_tardy_jobs_p2, no_tardy_jobs_p3, mean_WIP, early_term = get_objectives(
         job_shop, min_job, max_job, job_shop.early_termination)  # Gather all results
 
+    #print(job_shop.QueuesWC[0])
+    """fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(job_shop.QueuesWC[0][0])
+    plt.show()"""
 
-    return makespan, flow_time, mean_tardiness, max_tardiness, no_tardy_jobs_p1, no_tardy_jobs_p2, no_tardy_jobs_p3, mean_WIP, early_term, utilization_result
+    print(job_shop.utilization[(0, 0)] / job_shop.finish_time)
+
+    return makespan, flow_time, mean_tardiness, max_tardiness, no_tardy_jobs_p1, no_tardy_jobs_p2, no_tardy_jobs_p3, mean_WIP, early_term
 
 
 if __name__ == '__main__':
-
-    min_jobs = [499, 999, 1499]  # Minimum number of jobs in order te reach steady state
-    max_jobs = [2499, 2999, 3499]  # Maximum number of jobs to collect information from
-    wip_max = [150, 200, 300]  # Maximum WIP allowed in the system
-
-    arrival_time = [1.5429, 1.4572, 1.3804]  # (5.2455) x 4
-    # arrival_time = [1.6247, 1.5439, 1.4626]  # (5.2455) x 4 + 1.25
-    # arrival_time = [1.9104, 1.8043, 1.7093]  # (5.2455 + 1.25) x 4
-
-    utilization = [85, 90, 95]
-
-    due_date_settings = [4, 4, 4]
-
-    normaliziation = [[-75, 150, -8, 12, -75, 150],
-                      [-200, 150, -15, 12, -200, 150],
-                      [-300, 150, -35, 12, -300, 150]]  # Normalization ranges needed for the bidding
-
-    normalization_AGV = [[], [], []]
-
-    final_obj = []
-    final_std = []
-
-    no_runs = 1
-    no_processes = 1  # Change dependent on number of threads computer has, be sure to leave 1 thread remaining
-
-
-    """min_jobs = [499, 499, 999, 999, 1499, 1499]  # Minimum number of jobs in order te reach steady state
-    max_jobs = [2499, 2499, 2999, 2999, 3499, 3499]  # Maximum number of jobs to collect information from
-    wip_max = [150, 150, 200, 200, 300, 300]  # Maximum WIP allowed in the system
+    min_jobs = [499, 499, 999, 999, 1499, 1499]  # Minimum number of jobs in order te reach steady state
+    max_jobs = [2499, 2499, 2999, 2999, 3499, 3499]  # Maxmimum number of jobs to collect information from
+    wip_max = [150, 150, 200, 200, 300, 300]  # Maxmimum WIP allowed in the system
 
     arrival_time = [1.5429, 1.5429, 1.4572, 1.4572, 1.3804, 1.3804]
     utilization = [85, 85, 90, 90, 95, 95]
@@ -624,62 +456,35 @@ if __name__ == '__main__':
     final_obj = []
     final_std = []
 
-    no_runs = 24
-    no_processes = 6  # Change dependent on number of threads computer has, be sure to leave 1 thread remaining"""
-
+    no_runs = 5
+    no_processes = 5  # Change dependent on number of threads computer has, be sure to leave 1 thread remaining
     final_result = np.zeros((no_runs, 9))
     results = []
 
-    for i in range(len(utilization)):
-
-        utilization_per_sim = []
-
-        str1 = "Runs/Final_Runs/Run-weights-" + str(utilization[i]) + "-" + str(due_date_settings[i]) + ".csv"
-
-        # str1 = "Runs/Final_Runs_New_Arrival_Rate/Run-weights-" + str(utilization[i]) + "-" + str(
-        #    due_date_settings[i]) + ".csv"
-
-        """str1 = "Runs/Attribute_Runs_New_Arrival_Rate/" + str(utilization[i]) + "-" + str(
-            due_date_settings[i]) + "/Run-weights-" + str(utilization[i]) + "-" + str(
-            due_date_settings[i]) + "-" + "1000-[5, 7]-[3, 3].csv"""
-
-        """str1 = "Runs/Attribute_Runs_New_Arrival_Rate/" + str(utilization[i]) + "-" + str(
-            due_date_settings[i]) + "/Run-weights-" + str(utilization[i]) + "-" + str(
-            due_date_settings[i]) + "-" + "1000-[7, 7]-[3, 3].csv"""
-
+    for i in range(6):
+        str1 = "Runs/Final_Runs/Run-weights-" + str(utilization[i]) + "-" + str(
+            due_date_settings[i]) + ".csv"
         df = pd.read_csv(str1, header=None)
         weights = df.values.tolist()
-
         print("Current run is: " + str(utilization[i]) + "-" + str(due_date_settings[i]))
         obj = np.zeros(no_runs)
         for j in range(int(no_runs / no_processes)):
-
             jobshop_pool = Pool(processes=no_processes)
             seeds = range(j * no_processes, j * no_processes + no_processes)
             func1 = partial(do_simulation_with_weights, weights, arrival_time[i], due_date_settings[i],
                             min_jobs[i], max_jobs[i], normaliziation[i], wip_max[i])
             makespan_per_seed = jobshop_pool.map(func1, seeds)
-            # print(makespan_per_seed)
-
-
+            #print(makespan_per_seed)
             for h, o in itertools.product(range(no_processes), range(9)):
                 final_result[h + j * no_processes][o] = makespan_per_seed[h][o]
-                utilization_per_sim.append(makespan_per_seed[h][9])
-
-
 
         results.append(list(np.mean(final_result, axis=0)))
-
-        print(sum(utilization_per_sim) / len(utilization_per_sim))
-
-
-
-    results = pd.DataFrame(results,
-                           columns=['Makespan', 'Mean Flow Time', 'Mean Weighted Tardiness', 'Max Weighted Tardiness',
-                                    'No. Tardy Jobs P1', 'No. Tardy Jobs P2', 'No. Tardy Jobs P3', 'Mean WIP',
-                                    'Early_Term'])
-
-    file_name = f"Results/Custom_1.csv"
-    results.to_csv(file_name)
-
+        #print(results)
+    #
+    # results = pd.DataFrame(results,
+    #                        columns=['Makespan', 'Mean Flow Time', 'Mean Weighted Tardiness', 'Max Weighted Tardiness',
+    #                                 'No. Tardy Jobs P1', 'No. Tardy Jobs P2', 'No. Tardy Jobs P3', 'Mean WIP',
+    #                                 'Early_Term'])
+    # file_name = f"Results/Custom_3.csv"
+    # results.to_csv(file_name)
 

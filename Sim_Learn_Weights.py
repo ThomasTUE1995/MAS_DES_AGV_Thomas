@@ -41,7 +41,7 @@ noAttributes = 8
 noAttributesJob = 4
 totalAttributes = noAttributes + noAttributesJob
 
-no_generation = 1000
+no_generation = 50
 
 
 def list_duplicates(seq):
@@ -161,6 +161,13 @@ def next_workstation(job, job_shop, env, all_store, min_job, max_job, wip_max):
                 job_shop.end_event.succeed()
 
         if (job_shop.WIP > wip_max) | (env.now > 7_000):
+
+            if job_shop.WIP > wip_max:
+                print("To much WIP")
+
+            if env.now > 7_000:
+                print("Time eslaped")
+
             job_shop.end_event.succeed()
             job_shop.early_termination = 1
 
@@ -362,6 +369,8 @@ class jobShop:
         self.bids = []
 
 
+        self.flowtime = []
+
 class New_Job:
     def __init__(self, name, env, number1, dueDateTightness):
         jobType = random.choices([1, 2, 3], weights=[0.3, 0.5, 0.2], k=1)
@@ -376,10 +385,11 @@ class New_Job:
         self.dueDate[0] = env.now
         self.operationOrder = operationOrder[self.type - 1]
         self.numberOfOperations = numberOfOperations[self.type - 1]
+        ddt = random.uniform(dueDateTightness, dueDateTightness + 5)
         for ii in range(self.numberOfOperations):
             meanPT = processingTimes[self.type - 1][ii]
             self.processingTime[ii] = meanPT
-            self.dueDate[ii + 1] = self.dueDate[ii] + self.processingTime[ii] * dueDateTightness
+            self.dueDate[ii + 1] = self.dueDate[ii] + self.processingTime[ii] * ddt
 
 
 def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due_date_tightness, bid_skip, seq_skip,
@@ -430,12 +440,18 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
             objective_new[0] = 20_000
             max_tard[0] = 1000
         else:
+
             objective_new[0] = np.nanmean(np.nonzero(job_shop.tardiness[min_job:max_job])) + 10_000 - np.count_nonzero(
-                job_shop.makespan[min_job:max_job]) + 0.01 * max(job_shop.tardiness[min_job:max_job])
+                job_shop.flowtime[min_job:max_job]) + 0.01 * max(job_shop.tardiness[min_job:max_job])
+
+            #objective_new[0] = np.nanmean(np.nonzero(job_shop.tardiness[min_job:max_job])) + 10_000 - np.count_nonzero(
+            #    job_shop.makespan[min_job:max_job]) + 0.01 * max(job_shop.tardiness[min_job:max_job])
+
             max_tard[0] = np.nanmax(job_shop.tardiness[min_job:max_job])
     else:
         objective_new[0] = np.nanmean(job_shop.tardiness[min_job:max_job]) + 0.01 * max(
             job_shop.tardiness[min_job:max_job])
+
         max_tard[0] = np.nanmax(job_shop.tardiness[min_job:max_job])
         # print(job_shop.tardiness[499:2499])
 
@@ -472,8 +488,13 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
             objective_new[1] = 20_000
             max_tard[1] = 1000
         else:
+
             objective_new[1] = np.nanmean(np.nonzero(job_shop.tardiness[min_job:max_job])) + 10_000 - np.count_nonzero(
-                job_shop.makespan[min_job:max_job]) + 0.01 * max(job_shop.tardiness[min_job:max_job])
+                job_shop.flowtime[min_job:max_job]) + 0.01 * max(job_shop.tardiness[min_job:max_job])
+
+            # objective_new[1] = np.nanmean(np.nonzero(job_shop.tardiness[min_job:max_job])) + 10_000 - np.count_nonzero(
+            #    job_shop.makespan[min_job:max_job]) + 0.01 * max(job_shop.tardiness[min_job:max_job])
+
             max_tard[1] = np.nanmax(job_shop.tardiness[min_job:max_job])
     else:
         objective_new[1] = np.nanmean(job_shop.tardiness[min_job:max_job]) + 0.01 * max(
@@ -483,6 +504,8 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
 
     mean_tard[1] = np.nanmean(job_shop.tardiness[min_job:max_job])
     # max_tard[1] = np.nanmax(job_shop.tardiness[min_job:max_job])
+
+    #print("Mean tardiness", np.mean(job_shop.tardiness))
 
     return objective_new, eta_new, mean_tard, max_tard
 
@@ -499,6 +522,7 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, bid_s
                 std_weight[m][j] = 0
             else:
                 std_weight[m][j] = std_weight[m][j] + np.log(0.3)
+
     population_size = totalAttributes + 1
 
     for i in range(sum(machinesPerWC)):
@@ -508,7 +532,7 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, bid_s
         mean_weight[i][noAttributes] = -1
         mean_weight[i][noAttributes + 2] = -3
 
-    jobshop_pool = Pool(processes=population_size)
+    jobshop_pool = Pool(processes=1)
     alpha_mean = 0.1
     alpha_std = 0.025
     beta_1 = 0.9
@@ -523,6 +547,7 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, bid_s
     eta = np.zeros((population_size, sum(machinesPerWC), totalAttributes))
     mean_tardiness = np.zeros((population_size, 2))
     max_tardiness = np.zeros((population_size, 2))
+
 
     for num_sim in range(no_generation):
         seeds = range(int(population_size))
@@ -594,7 +619,7 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, bid_s
              str(np.mean(np.exp(std_weight), axis=0)) + "\n"]
         file1.writelines(L)
         if num_sim == no_generation - 1:
-            print(np.exp(std_weight))
+            #print(np.exp(std_weight))
             # file1.close()
             file2 = open(filename2 + ".csv", 'w')
             writer = csv.writer(file2)
@@ -603,7 +628,8 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, bid_s
 
 
 if __name__ == '__main__':
-    arrival_time = [1.5429, 1.5429, 1.4572, 1.4572, 1.3804, 1.3804]
+
+    """arrival_time = [1.5429, 1.5429, 1.4572, 1.4572, 1.3804, 1.3804]
     utilization = [85, 85, 90, 90, 95, 95]
     due_date_settings = [4, 6, 4, 6, 4, 6]
     learning_decay_rate = [10, 100, 500, 1000, 2500, 5000, 10000]
@@ -620,20 +646,44 @@ if __name__ == '__main__':
     # skip_seq = [[3, 3], [3, 3], [3, 3], [3, 3], [0, 3], [1, 3], [2, 3]]
     #
     skip_bid = [[7, 7], [2, 7], [4, 7], [5, 7]]
-    skip_seq = [[3, 3], [3, 3], [3, 3], [3, 3]]
+    skip_seq = [[3, 3], [3, 3], [3, 3], [3, 3]]"""
 
-    for a in range(4, 5):
-        for skip in range(1):
-            for n in range(len(normaliziation)):
-                print("Current run is:" + str(utilization[a]) + "-" + str(due_date_settings[a]) + "-" + str(
-                    learning_decay_rate[3]) + "-" + str(skip_bid[skip]) + "-" + str(skip_seq[skip]))
-                str1 = "Runs/Attribute_Runs/" + str(utilization[a]) + "-" + str(
-                    due_date_settings[a]) + "/Run-" + str(utilization[a]) + "-" + str(
-                    due_date_settings[a]) + "-" + str(str(learning_decay_rate[3])) + "-" + str(skip_bid[skip]) + "-" + str(
-                    skip_seq[skip]) + str(n) + ".txt"
-                str2 = "Runs/Attribute_Runs/" + str(utilization[a]) + "-" + str(
-                    due_date_settings[a]) + "/Run-weights-" + str(utilization[a]) + "-" + str(
-                    due_date_settings[a]) + "-" + str(learning_decay_rate[3]) + "-" + str(skip_bid[skip]) + "-" + str(
-                    skip_seq[skip]) + str(n)
-                run_linear(str1, str2, arrival_time[a], due_date_settings[a], learning_decay_rate[3], skip_bid[skip],
-                           skip_seq[skip], normaliziation[n], min_jobs[a], max_jobs[a], wip_max[a])
+    arrival_time = [1.5429, 1.4572, 1.3804]  # (5.2455) x 4
+    # arrival_time = [1.6247, 1.5439, 1.4626]  # (5.2455) x 4 + 1.25
+    # arrival_time = [1.9104, 1.8043, 1.7093]  # (5.2455 + 1.25) x 4
+
+    utilization = [85, 90, 95]
+    due_date_settings = [4, 4, 4]
+    learning_decay_rate = [10, 100, 500, 1000, 2500, 5000, 10000]
+    # att_considered = [10, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+
+    normaliziation = [[-75, 150, -8, 12, -75, 150],
+                      [-200, 150, -15, 12, -200, 150],
+                      [-300, 150, -35, 12, -300, 150]]  # Normalization ranges needed for the bidding
+
+    min_jobs = [499, 999, 1499]  # Minimum number of jobs in order te reach steady state
+    max_jobs = [2499, 2999, 3499]  # Maximum number of jobs to collect information from
+    wip_max = [150, 200, 300]  # Maximum WIP allowed in the system
+
+    # skip_bid = [[0, 7], [1, 7], [3, 7], [5, 7], [7, 7], [7, 7], [7, 7]]
+    # skip_seq = [[3, 3], [3, 3], [3, 3], [3, 3], [0, 3], [1, 3], [2, 3]]
+
+    skip_bid = [[7, 7], [5, 7]]
+    skip_seq = [[3, 3], [3, 3]]
+
+
+
+    for a in range(3):
+        for skip in range(2):
+            print("Current run is:" + str(utilization[a]) + "-" + str(due_date_settings[a]) + "-" + str(
+                learning_decay_rate[3]) + "-" + str(skip_bid[skip]) + "-" + str(skip_seq[skip]))
+            str1 = "Runs/AGV/Arr_1/Attribute_Runs/" + str(utilization[a]) + "-" + str(
+                due_date_settings[a]) + "/Run-" + str(utilization[a]) + "-" + str(
+                due_date_settings[a]) + "-" + str(str(learning_decay_rate[3])) + "-" + str(skip_bid[skip]) + "-" + str(
+                skip_seq[skip]) + ".txt"
+            str2 = "Runs/AGV/Arr_1/Attribute_Runs/" + str(utilization[a]) + "-" + str(
+                due_date_settings[a]) + "/Run-weights-" + str(utilization[a]) + "-" + str(
+                due_date_settings[a]) + "-" + str(learning_decay_rate[3]) + "-" + str(skip_bid[skip]) + "-" + str(
+                skip_seq[skip])
+            run_linear(str1, str2, arrival_time[a], due_date_settings[a], learning_decay_rate[3], skip_bid[skip],
+                       skip_seq[skip], normaliziation[a], min_jobs[a], max_jobs[a], wip_max[a])

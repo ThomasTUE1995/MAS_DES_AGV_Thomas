@@ -493,7 +493,7 @@ if __name__ == '__main__':
     results_per_line = []
 
     for k in range(len(arrival_time)):
-        str1 = "Runs/Final_runs/Run-weights-" + str(utilization[k]) + "-" + str(due_date_settings[k]) + ".csv"
+        str1 = "Runs/Final_Runs/Run-weights-" + str(utilization[k]) + "-" + str(due_date_settings[k]) + ".csv"
         df = pd.read_csv(str1, header=None)
         weights = df.values.tolist()
         results = []

@@ -438,7 +438,7 @@ if __name__ == '__main__':
     # final_result = np.zeros((no_runs, len(skip_seq)))
 
     for j in range(1):
-        str1 = "Runs/Final_runs/Run-weights-" + str(utilization[j]) + "-" + str(due_date_settings[j]) + ".csv"
+        str1 = "Runs/Final_Runs/Run-weights-" + str(utilization[j]) + "-" + str(due_date_settings[j]) + ".csv"
         df = pd.read_csv(str1, header=None)
         weights = df.values.tolist()
         obj = np.zeros(no_runs)
