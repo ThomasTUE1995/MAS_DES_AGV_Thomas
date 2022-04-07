@@ -234,7 +234,7 @@ def choose_distance_matrix(AGV_selection, agvsPerWC_input):
 
         agvsPerWC = agvsPerWC_input  # Number of AGVs per workcenter
         agv_number_WC = []
-        agv_count = 0
+        agv_count = 1
         for agv_WC in agvsPerWC:
             WC_AGV_list = []
             for No_agv_WC in range(agv_WC):
