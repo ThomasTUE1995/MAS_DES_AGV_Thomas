@@ -822,7 +822,7 @@ def queue_total_distance(agv, job_shop):
     else:
 
         for job in agv[0].items:
-            distance += job_shop.travel_time_matrix[agv[1]][job.cfp_wc_ma_result]
+            distance += job_shop.travel_time_matrix[agv[1]][job.location]
         # distance = distance / len(agv[0].items)
 
     return distance
@@ -893,20 +893,16 @@ def next_workstation(job, job_shop, env, min_job, max_job, max_wip):
             if np.count_nonzero(job_shop.flowtime[min_job:max_job]) == 2000:
                 job_shop.finish_time = env.now
                 job_shop.end_event.succeed()
-                print("Good simulation")
+                # print("Good simulation")
 
         if (job_shop.WIP > max_wip) | (env.now > 10_000):
 
-            if job_shop.WIP > max_wip:
+            """if job_shop.WIP > max_wip:
                 print("To much WIP")
-                pass
-
             elif env.now > 10_000:
                 print("Time eslaped")
-                pass
-
             else:
-                print("bad simulation")
+                print("bad simulation")"""
 
             job_shop.end_event.succeed()
             job_shop.early_termination = 1
@@ -968,7 +964,7 @@ def choose_job_queue_agv(job_weights, job, normalization, agv, agvnumber, env, d
     attribute_job = [0] * noAttributesJobAGV
     attribute_job[0] = (job_priority - 1) / (10 - 1) * job_weights[sum(machinesPerWC) + agvnumber - 1][
         noAttributesAGV]  # Job priority
-    attribute_job[1] = (job_shop.travel_time_matrix[agv[1]][job.cfp_wc_ma_result] / 1.5) * \
+    attribute_job[1] = (job_shop.travel_time_matrix[agv[1]][job.location] / 1.5) * \
                        job_weights[sum(machinesPerWC) + agvnumber - 1][
                            noAttributesAGV + 1]  # Job travel distance
     attribute_job[2] = (job_location_set[job.location[0]] / 6) * job_weights[sum(machinesPerWC) + agvnumber - 1][
@@ -1019,7 +1015,7 @@ def agv_processing(job_shop, currentWC, agv_number, env, agv, normalization, agv
                 job_shop.AGV_total_waiting_time["AGV" + str(agv_number)].append(waiting_time)
 
                 driving_time = job_shop.travel_time_matrix[agv_location][next_job.location]
-                yield env.process(agv_proc_res(agv_res, driving_time, env))
+                yield env.timeout(driving_time)
 
                 job_shop.AGV_total_driving_time["AGV" + str(agv_number)].append(driving_time)
                 job_shop.AGV_remember_time["AGV" + str(agv_number)] = env.now
@@ -1080,7 +1076,7 @@ def agv_processing(job_shop, currentWC, agv_number, env, agv, normalization, agv
             job_shop.AGV_total_waiting_time["AGV" + str(agv_number)].append(waiting_time)
 
             driving_time = job_shop.travel_time_matrix[agv_location][job_destination]
-            yield env.process(agv_proc_res(agv_res, driving_time, env))
+            yield env.timeout(driving_time)
 
             job_shop.AGV_total_driving_time["AGV" + str(agv_number)].append(driving_time)
             job_shop.AGV_remember_time["AGV" + str(agv_number)] = env.now
@@ -1126,10 +1122,6 @@ def agv_processing(job_shop, currentWC, agv_number, env, agv, normalization, agv
             job_shop.condition_flag_agv[(relative_agv, currentWC - 1)] = simpy.Event(env)  # Reset event if it is used
 
 
-def agv_proc_res(agv_resource, driving_time, env):
-    with agv_resource.request() as req:
-        yield req
-        yield env.timeout(driving_time)
 
 
 def machine_processing(job_shop, currentWC, machine_number, env, last_job, machine,
@@ -1175,11 +1167,9 @@ def machine_processing(job_shop, currentWC, machine_number, env, last_job, machi
 
             makespan[relative_machine] = set_makespan(makespan[relative_machine], next_job, env, setuptime)
 
-            # TODO: Machine utilization
-            """if next_job.number >= min_job:
-                job_shop.utilization[(relative_machine, currentWC - 1)] = job_shop.utilization[(
-                    relative_machine, currentWC - 1)] + setuptime + next_job.processingTime[
-                                                                              next_job.currentOperation - 1]"""
+            job_shop.utilization[(relative_machine, currentWC - 1)] = job_shop.utilization[(
+                relative_machine, currentWC - 1)] + setuptime + next_job.processingTime[
+                                                                          next_job.currentOperation - 1]
 
             last_job[relative_machine] = next_job.type
 
@@ -1196,11 +1186,28 @@ def machine_processing(job_shop, currentWC, machine_number, env, last_job, machi
             # May not be higher than 2.0!!!!!!
             request_earlier_AGV_time = JAFAMT
 
-            # yield env.timeout(time_in_processing)
+            yield env.timeout(time_in_processing - request_earlier_AGV_time)
 
-            yield env.process(
-                machine_proc_res(machine_res, time_in_processing, request_earlier_AGV_time, next_job, job_shop,
-                                 currentWC, env))
+            if request_earlier_AGV_time != 0:
+                next_job.agv_requested = True
+
+                selected_WC = currentWC
+
+                if next_job.currentOperation == next_job.numberOfOperations:
+                    selected_WC = currentWC
+                else:
+
+                    selected_WC = operationOrder[next_job.type - 1][(next_job.currentOperation + 1) - 1]
+
+                # Put job in APA
+                AGVstore = job_shop.AGVstoreWC[selected_WC - 1]
+                AGVstore.put(next_job)
+
+                # Trigger the APA that there is a Job
+                if not job_shop.condition_flag_CFP_AGV[selected_WC - 1].triggered:
+                    job_shop.condition_flag_CFP_AGV[selected_WC - 1].succeed()
+
+            yield env.timeout(request_earlier_AGV_time)
 
             debug(18, env, next_job, currentWC, ma_number, None, None, None)
 
@@ -1218,35 +1225,7 @@ def machine_processing(job_shop, currentWC, machine_number, env, last_job, machi
                 env)  # Reset event if it is used
 
 
-def machine_proc_res(machine_resource, time_in_processing, request_earlier_AGV_time, next_job, job_shop, currentWC,
-                     env):
-    with machine_resource.request() as req:
-        yield req
 
-        yield env.timeout(request_earlier_AGV_time)
-
-        # TODO: Keep in mind that when two jobs are scheduled at the same moment in the heap the results can change!
-
-        if request_earlier_AGV_time != 0:
-            next_job.agv_requested = True
-
-            selected_WC = currentWC
-
-            if next_job.currentOperation == next_job.numberOfOperations:
-                selected_WC = currentWC
-            else:
-
-                selected_WC = operationOrder[next_job.type - 1][(next_job.currentOperation + 1) - 1]
-
-            # Put job in APA
-            AGVstore = job_shop.AGVstoreWC[selected_WC - 1]
-            AGVstore.put(next_job)
-
-            # Trigger the APA that there is a Job
-            if not job_shop.condition_flag_CFP_AGV[selected_WC - 1].triggered:
-                job_shop.condition_flag_CFP_AGV[selected_WC - 1].succeed()
-
-        yield env.timeout(time_in_processing - request_earlier_AGV_time)
 
 
 def cfp_wc_ma(env, machine, store, job_shop, currentWC, normalization):
@@ -1518,24 +1497,17 @@ def get_objectives(job_shop, min_job, max_job, early_termination):
         # WIP Level
         mean_WIP = np.mean(job_shop.totalWIP)
 
-    """# Machines utilizations
-    machine_utilizations_summed = []
 
+    # Machines utilizations
+    utilization_MAs = []
     for wc in range(len(machinesPerWC)):
         for ii in range(machinesPerWC[wc]):
-            machine_utilizations_summed.append(job_shop.utilization[(ii, wc)])
-            # print(job_shop.utilization[(ii, wc)] / (job_shop.finish_time - job_shop.start_time))
+            utilization_MAs.append(round(job_shop.utilization[(ii, wc)]/job_shop.finish_time, 2))
 
-    machine_utilizations = (sum(machine_utilizations_summed) / len(machine_utilizations_summed)) / (
-            job_shop.finish_time - job_shop.start_time)"""
-
-    """shop_duration = job_shop.finish_time
-
-        for agv in job_shop.AGV_total_driving_time:
-            # print("Driving time", agv, ":", sum(job_shop.AGV_total_driving_time[agv]))
-            print("Utilization", agv, ":", round(sum(job_shop.AGV_total_driving_time[agv])/job_shop.finish_time, 2), "%")
-
-        print("Total shop duration: ", job_shop.finish_time)"""
+    # AGV Utilizations
+    utilization_AGVs = []
+    for agv in job_shop.AGV_total_driving_time:
+        utilization_AGVs.append(round(sum(job_shop.AGV_total_driving_time[agv])/job_shop.finish_time, 2))
 
 
     """print("")
@@ -1547,7 +1519,8 @@ def get_objectives(job_shop, min_job, max_job, early_termination):
     print("Mean Tardiness", mean_tardiness)
     print("")"""
 
-    return makespan, flow_time, mean_tardiness, max_tardiness, no_tardy_jobs_p1, no_tardy_jobs_p2, no_tardy_jobs_p3, mean_WIP, early_term, machine_utilizations
+    return makespan, flow_time, mean_tardiness, max_tardiness, no_tardy_jobs_p1, no_tardy_jobs_p2, no_tardy_jobs_p3, \
+           mean_WIP, early_term, utilization_MAs, utilization_AGVs
 
 
 # %% Main Simulation function
@@ -1594,14 +1567,12 @@ def do_simulation_with_weights(mean_weights, arrivalMean, due_date_tightness, mi
             agv = job_shop.agv_queue_per_wc[(ii, wc)]
             agv_buf = job_shop.agv_buffer_per_wc[(ii, wc)]
             agv_res = job_shop.agv_process_per_wc[(ii, wc)]
-            # TODO: weight for AGVs must still be learned
             env.process(agv_processing(job_shop, wc + 1, agv_number_WC[wc][ii], env,
                                        agv, normalization_AGV, agv_res, agv_buf, agv_number_WC))
 
     job_shop.end_event = env.event()
 
     env.run(until=job_shop.end_event)  # Run the simulation until the end event gets triggered
-
 
     if GANTT_Machine:
         visualize(job_shop.gantt_list_ma, 'Machine')
@@ -1615,10 +1586,12 @@ def do_simulation_with_weights(mean_weights, arrivalMean, due_date_tightness, mi
     if QUEUE:
         MA_queue_length_plot(job_shop.QueuesMAs, job_shop.QueueTimes)
 
-    makespan, flow_time, mean_tardiness, max_tardiness, no_tardy_jobs_p1, no_tardy_jobs_p2, no_tardy_jobs_p3, mean_WIP, early_term, utilization_result = get_objectives(
-        job_shop, min_job, max_job, job_shop.early_termination)  # Gather all results
+    makespan, flow_time, mean_tardiness, max_tardiness, no_tardy_jobs_p1, no_tardy_jobs_p2, no_tardy_jobs_p3, \
+    mean_WIP, early_term, utilization_result_MA, utilization_result_AGV = get_objectives(job_shop, min_job, max_job,
+                                                                            job_shop.early_termination)  # Gather all results
 
-    return makespan, flow_time, mean_tardiness, max_tardiness, no_tardy_jobs_p1, no_tardy_jobs_p2, no_tardy_jobs_p3, mean_WIP, early_term, utilization_result
+    return makespan, flow_time, mean_tardiness, max_tardiness, no_tardy_jobs_p1, no_tardy_jobs_p2, no_tardy_jobs_p3, \
+           mean_WIP, early_term, utilization_result_MA, utilization_result_AGV
 
 
 # %% Classes
@@ -1820,8 +1793,8 @@ if __name__ == '__main__':
                                 [1, 2, 3, 4, 5, 6],  # NOT SET YET
                                 [1, 2, 3, 4, 5, 6]]  # NOT SET YET
 
-    no_runs = 1
-    no_processes = 1  # Change dependent on number of threads computer has, be sure to leave 1 thread remaining
+    no_runs = 60
+    no_processes = 5  # Change dependent on number of threads computer has, be sure to leave 1 thread remaining
 
     # Simulation Parameter 1 - AGV scheduling control:
     # 1: Linear Bidding Auction
@@ -1855,8 +1828,16 @@ if __name__ == '__main__':
     for (a, b, c, d) in itertools.product(simulation_parameter_1, simulation_parameter_2, simulation_parameter_3,
                                           simulation_parameter_4):
 
+
         final_result = np.zeros((no_runs, 9))
         results = []
+
+        ma_utilizations = []
+        agv_utilizations = []
+        average_ma_utilization = []
+        average_agv_utilization = []
+        total_average_machine_utilization = []
+        total_average_avg_utilization = []
 
         AGV_rule = a
         AGV_selection = b
@@ -1876,7 +1857,7 @@ if __name__ == '__main__':
 
             utilization_per_sim = []
 
-            str1 = "Runs/AGV/Arr_1/Final_Runs/Run-weights-" + str(utilization[i]) + "-" + str(
+            str1 = "Runs/AGV/Arr_2/Final_Runs/Run-weights-" + str(utilization[i]) + "-" + str(
                 due_date_settings[i]) + ".csv"
 
             df = pd.read_csv(str1, header=None)
@@ -1884,6 +1865,7 @@ if __name__ == '__main__':
 
             print("Current run is: " + str(utilization[i]) + "-" + str(due_date_settings[i]))
             obj = np.zeros(no_runs)
+
             for j in range(int(no_runs / no_processes)):
 
                 jobshop_pool = Pool(processes=no_processes)
@@ -1894,27 +1876,50 @@ if __name__ == '__main__':
                                 wip_max[i], AGV_rule,
                                 created_travel_time_matrix, immediate_release_bool, JAFAMT_value, agvsPerWC_list,
                                 agv_number_WC_list)
+
                 makespan_per_seed = jobshop_pool.map(func1, seeds)
 
-                utilization_per_sim = []
+                # Gather final results
                 for h, o in itertools.product(range(no_processes), range(9)):
                     final_result[h + j * no_processes][o] = makespan_per_seed[h][o]
-                    utilization_per_sim.append(makespan_per_seed[h][9])
+
+                    ma_utilizations.append(makespan_per_seed[h][9])
+                    agv_utilizations.append(makespan_per_seed[h][10])
 
             results.append(list(np.nanmean(final_result, axis=0)))
+            average_ma_utilization.append(np.nanmean(ma_utilizations, axis=0))
+            average_agv_utilization.append(np.nanmean(agv_utilizations, axis=0))
 
-            print(sum(utilization_per_sim) / len(utilization_per_sim))
+        for wc in range(len(machinesPerWC)):
+            print("\n"," Work Center", wc)
+            print("--------------------")
+            for ma in machine_number_WC[wc]:
+                print("Utilization Machine", ma, "=", round(average_ma_utilization[0][ma-1]*100, 2), "%")
+                total_average_machine_utilization.append(round(average_ma_utilization[0][ma-1]*100, 2))
+            for agv in agv_number_WC_new[wc]:
+                print("Utilization AGV", agv, "=", round(average_agv_utilization[0][agv-1]*100, 2), "%")
+                total_average_avg_utilization.append(round(average_agv_utilization[0][agv - 1] * 100, 2))
 
-        results = pd.DataFrame(results,
-                               columns=['Makespan', 'Mean Flow Time', 'Mean Weighted Tardiness',
-                                        'Max Weighted Tardiness',
-                                        'No. Tardy Jobs P1', 'No. Tardy Jobs P2', 'No. Tardy Jobs P3', 'Mean WIP',
-                                        'Early_Term'])
 
-        sensitivity_str = f"Result_analysis_AGV/Runs/Run-" + \
-                          "(" + str(a) + "-" + str(b) + "-" + str(c) + "-" + str(d) + ")" + ".csv"
+
+
+        # Save the results
+        results = pd.DataFrame(results, columns=['Makespan', 'Mean Flow Time', 'Mean Weighted Tardiness',
+                                                 'Max Weighted Tardiness', 'No. Tardy Jobs P1', 'No. Tardy Jobs P2',
+                                                 'No. Tardy Jobs P3', 'Mean WIP', 'Early_Term'])
+        # Print mean tardiness
+        print("\nMean Tardiness Job-shop:", round(results['Mean Weighted Tardiness'][0], 2))
+        print("Total Average Machine Utilization:", round(sum(total_average_machine_utilization) / len(total_average_machine_utilization), 2), "%")
+        print("Total Average Avg Utilization:", round(sum(total_average_avg_utilization) / len(total_average_avg_utilization), 2), "%")
+
+        sensitivity_str = f"Result_analysis_AGV/Runs/Run-" + "(" + \
+                          str(a) + "-" + \
+                          str(b) + "-" + \
+                          str(c) + "-" + \
+                          str(d) + ")" + ".csv"
 
         file_name = f"Results/Custom_1.csv"
 
         results.to_csv(file_name)
         # results.to_csv(sensitivity_str)
+
