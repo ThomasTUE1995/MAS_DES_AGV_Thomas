@@ -59,7 +59,7 @@ def list_duplicates(seq):
     return ((key, locs) for key, locs in tally.items()
             if len(locs) >= 1)
 
-
+# TODO
 def all_equal(iterable):
     g = groupby(iterable)
     return next(g, True) and not next(g, False)
@@ -232,7 +232,8 @@ class Machine:
         self.process = env.process(
             self.machine_processing(job_shop, current_WC, machine_number, env, weights_new, last_job, machine,
                                     makespan, min_job, max_job, normalization, max_wip, time_to_repair))
-        env.process(self.break_machine(time_to_failure, time_to_failure, job_shop, machine_number, current_WC))
+
+        env.process(self.break_machine(time_to_failure, time_to_repair, job_shop, machine_number, current_WC))
 
     def machine_processing(self, job_shop, current_WC, machine_number, env, weights_new, last_job, machine,
                            makespan, min_job, max_job, normalization, max_wip, time_to_repair):
@@ -290,6 +291,7 @@ class Machine:
                 job_shop.position_in_machine[next_job.number][next_job.currentOperation - 1] = jj
                 jj += 1
                 done_in = time_in_processing
+
                 while done_in:
                     try:
                         start = env.now
@@ -779,7 +781,7 @@ if __name__ == '__main__':
     proc_time_incr = [0, 0.05, 0.10]
     proc_incr_prob = [0, 0.05, 0.10, 0.15, 0.20]
 
-    repair_time = [1, 5, 10]
+    repair_time = [0, 1, 5, 10]
     unav_prob = [0.05, 0.10, 0.15, 0.20]
 
     final_obj = []
@@ -818,4 +820,3 @@ if __name__ == '__main__':
         file_name = f"Results/Rush_Job{utilization[j]}_{due_date_settings[j]}.csv"
         results1.to_csv(file_name)
 
-        # arrival_time = [1.5429, 1.5429, 1.5429, 1.4572, 1.4572, 1.4572, 1.3804, 1.3804, 1.3804]

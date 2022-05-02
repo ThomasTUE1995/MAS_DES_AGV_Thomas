@@ -2,10 +2,14 @@
 # TODO:
 
 ### 1. With AGVs for all workcenter change number of AGV Pool Agents to one
-### 2. Implement extra classes
 ### 3. Implement contribution per attribute
-### 4. Check where AGVs go in bidding mode
-### 5. Check slack
+
+
+
+### 6. Check Yield in CFP functions!
+### 7. New attribute: Job is at machine?
+### 8. Implement rush jobs!
+### 9. What are proc_increase and proc_time_prob for????
 
 
 
