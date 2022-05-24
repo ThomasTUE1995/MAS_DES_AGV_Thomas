@@ -44,11 +44,21 @@ if scenario == 1:  # ------------ Scenario 1:
     numberOfOperations = [len(i) for i in operationOrder]
     noOfWC = range(len(machinesPerWC))
 
+    agvsPerWC_new = [3,3,3,3,3]
+
+    created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(
+        scenario, agvsPerWC_new)
+
 else:  # ----------- Scenario 2:
     processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = generate_scenario.new_scenario(
         8, 4, 8, 26, 2, 9, 0.20, 0.70)
     numberOfOperations = [len(i) for i in operationOrder]
     noOfWC = range(len(machinesPerWC))
+
+    agvsPerWC_new = [3,3,3,3,3,3,3,3]
+
+    created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(
+        scenario, agvsPerWC_new)
 
 
 
@@ -1205,13 +1215,13 @@ def source(env, number1, interval, job_shop, due_date_setting, min_job):
 def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due_date_tightness,
                                norm_range, norm_range_agv, min_job, max_job, wip_max, AGV_rule,
                                created_travel_time_matrix,
-                               immediate_release_bool, JAFAMT_value, agvsPerWC_list, agv_number_WC_list, iii):
-    eta_new = np.zeros((sum(machinesPerWC) + sum(agvsPerWC_list), totalAttributes))
+                               immediate_release_bool, JAFAMT_value, iii):
+    eta_new = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
     objective_new = np.zeros(2)
     mean_tard = np.zeros(2)
     max_tard = np.zeros(2)
-    test_weights_pos = np.zeros((sum(machinesPerWC) + sum(agvsPerWC_list), totalAttributes))
-    test_weights_min = np.zeros((sum(machinesPerWC) + sum(agvsPerWC_list), totalAttributes))
+    test_weights_pos = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
+    test_weights_min = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
 
     for mm in range(sum(machinesPerWC)):
         for jj in range(totalAttributes):
@@ -1225,7 +1235,7 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
                 test_weights_pos[mm][jj] = mean_weight_new[mm][jj] + (eta_new[mm][jj])
                 test_weights_min[mm][jj] = mean_weight_new[mm][jj] - (eta_new[mm][jj])
 
-    for mm in range(sum(machinesPerWC), sum(machinesPerWC) + sum(agvsPerWC_list)):
+    for mm in range(sum(machinesPerWC), sum(machinesPerWC) + sum(agvsPerWC)):
         for jj in range(totalAttributes):
             if (jj >= min(totalAttributes, noAttributesAGV + noAttributesJobAGV)) | (jj == noAttributesAGV - 1) | (
                     jj == noAttributesAGV + noAttributesJobAGV - 1):
@@ -1244,8 +1254,8 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
                     test_weights_min[mm][jj] = 0
 
     env = Environment()
-    job_shop = jobShop(env, test_weights_pos, created_travel_time_matrix, agvsPerWC_list,
-                       agv_number_WC_list)  # Initiate the job shop
+    job_shop = jobShop(env, test_weights_pos, created_travel_time_matrix, agvsPerWC,
+                       agv_number_WC)  # Initiate the job shop
     env.process(source(env, number, arrivalMean, job_shop, due_date_tightness, min_job))
 
     for wc in range(len(machinesPerWC)):
@@ -1269,14 +1279,14 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
 
         env.process(
             cfp_wc_agv(env, job_shop.agv_queue_per_wc, AGVstoreWC, job_shop, wc + 1, norm_range_agv, AGV_rule,
-                       immediate_release_bool, agvsPerWC_list, agv_number_WC_list))
+                       immediate_release_bool, agvsPerWC, agv_number_WC))
 
-        for ii in range(agvsPerWC_list[wc]):
+        for ii in range(agvsPerWC[wc]):
             agv = job_shop.agv_queue_per_wc[(ii, wc)]
             agv_buf = job_shop.agv_buffer_per_wc[(ii, wc)]
 
-            env.process(agv_processing(job_shop, wc + 1, agv_number_WC_list[wc][ii], env,
-                                       agv, norm_range_agv, agv_buf, agv_number_WC_list))
+            env.process(agv_processing(job_shop, wc + 1, agv_number_WC[wc][ii], env,
+                                       agv, norm_range_agv, agv_buf, agv_number_WC))
 
     job_shop.end_event = env.event()
 
@@ -1300,8 +1310,8 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
     mean_tard[0] = np.nanmean(job_shop.tardiness[min_job:max_job])
 
     env = Environment()
-    job_shop = jobShop(env, test_weights_min, created_travel_time_matrix, agvsPerWC_list,
-                       agv_number_WC_list)  # Initiate the job shop
+    job_shop = jobShop(env, test_weights_min, created_travel_time_matrix, agvsPerWC,
+                       agv_number_WC)  # Initiate the job shop
     env.process(source(env, number, arrivalMean, job_shop, due_date_tightness, min_job))
 
     for wc in range(len(machinesPerWC)):
@@ -1323,13 +1333,13 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
 
         env.process(
             cfp_wc_agv(env, job_shop.agv_queue_per_wc, AGVstoreWC, job_shop, wc + 1, norm_range_agv, AGV_rule,
-                       immediate_release_bool, agvsPerWC_list, agv_number_WC_list))
+                       immediate_release_bool, agvsPerWC, agv_number_WC))
 
-        for ii in range(agvsPerWC_list[wc]):
+        for ii in range(agvsPerWC[wc]):
             agv = job_shop.agv_queue_per_wc[(ii, wc)]
             agv_buf = job_shop.agv_buffer_per_wc[(ii, wc)]
-            env.process(agv_processing(job_shop, wc + 1, agv_number_WC_list[wc][ii], env,
-                                       agv, norm_range_agv, agv_buf, agv_number_WC_list))
+            env.process(agv_processing(job_shop, wc + 1, agv_number_WC[wc][ii], env,
+                                       agv, norm_range_agv, agv_buf, agv_number_WC))
 
     job_shop.end_event = env.event()
 
@@ -1358,10 +1368,11 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
 def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_range,
                norm_range_agv, min_job,
                max_job, wip_max, AGV_rule, created_travel_time_matrix, immediate_release_bool,
-               JAFAMT_value, agvsPerWC_list, agv_number_WC_list):
+               JAFAMT_value):
+
     file1 = open(filename1, "w")
-    mean_weight = np.zeros((sum(machinesPerWC) + sum(agvsPerWC_list), totalAttributes))
-    std_weight = np.zeros((sum(machinesPerWC) + sum(agvsPerWC_list), totalAttributes))
+    mean_weight = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
+    std_weight = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
 
     # TODO: (j in bid_skip) | (j in [x + noAttributesMA + noAttributesAGV for x in seq_skip]):
 
@@ -1373,7 +1384,7 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
             else:
                 std_weight[m][j] = std_weight[m][j] + np.log(0.3)
 
-    for m in range(sum(machinesPerWC), sum(machinesPerWC) + sum(agvsPerWC_list)):
+    for m in range(sum(machinesPerWC), sum(machinesPerWC) + sum(agvsPerWC)):
         for j in range(totalAttributes):
             if (j >= min(totalAttributes, noAttributesAGV + noAttributesJobAGV)) | (j == noAttributesAGV - 1) | (
                     j == noAttributesAGV + noAttributesJobAGV - 1):
@@ -1394,7 +1405,7 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
         mean_weight[i][noAttributesMA + 2] = -3
 
     if AGV_rule <= 2:
-        for i in range(sum(machinesPerWC), sum(machinesPerWC) + sum(agvsPerWC_list)):
+        for i in range(sum(machinesPerWC), sum(machinesPerWC) + sum(agvsPerWC)):
             mean_weight[i][3] = -3
             mean_weight[i][noAttributesAGV + 3] = -1
 
@@ -1403,15 +1414,15 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
     alpha_std = 0.025
     beta_1 = 0.9
     beta_2 = 0.999
-    m_t_mean = np.zeros((sum(machinesPerWC) + sum(agvsPerWC_list), totalAttributes))
-    v_t_mean = np.zeros((sum(machinesPerWC) + sum(agvsPerWC_list), totalAttributes))
+    m_t_mean = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
+    v_t_mean = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
 
-    m_t_std = np.zeros((sum(machinesPerWC) + sum(agvsPerWC_list), totalAttributes))
-    v_t_std = np.zeros((sum(machinesPerWC) + sum(agvsPerWC_list), totalAttributes))
+    m_t_std = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
+    v_t_std = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
 
     objective = np.zeros((population_size, 2))
 
-    eta = np.zeros((population_size, sum(machinesPerWC) + sum(agvsPerWC_list), totalAttributes))
+    eta = np.zeros((population_size, sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
     mean_tardiness = np.zeros((population_size, 2))
     max_tardiness = np.zeros((population_size, 2))
 
@@ -1427,7 +1438,7 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
         func1 = partial(do_simulation_with_weights, mean_weight, std_weight, arrival_time_mean, due_date_k, norm_range,
                         norm_range_agv, min_job, max_job, wip_max, AGV_rule,
                         created_travel_time_matrix,
-                        immediate_release_bool, JAFAMT_value, agvsPerWC_list, agv_number_WC_list)
+                        immediate_release_bool, JAFAMT_value)
 
         makespan_per_seed = jobshop_pool.map(func1, seeds)
 
@@ -1444,10 +1455,10 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
             objective_norm[ii][0] = (objective[ii][0] - np.mean(objective, axis=0)[0]) / np.std(objective, axis=0)[0]
             objective_norm[ii][1] = (objective[ii][1] - np.mean(objective, axis=0)[1]) / np.std(objective, axis=0)[1]
 
-        delta_mean_final = np.zeros((sum(machinesPerWC) + sum(agvsPerWC_list), totalAttributes))
-        delta_std_final = np.zeros((sum(machinesPerWC) + sum(agvsPerWC_list), totalAttributes))
+        delta_mean_final = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
+        delta_std_final = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
 
-        for m in range(sum(machinesPerWC) + sum(agvsPerWC_list)):
+        for m in range(sum(machinesPerWC) + sum(agvsPerWC)):
             for j in range(totalAttributes):
                 delta_mean = 0
                 delta_std = 0
@@ -1463,7 +1474,7 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
 
         # print(delta_std_final)
         t = num_sim + 1
-        for m in range(sum(machinesPerWC) + sum(agvsPerWC_list)):
+        for m in range(sum(machinesPerWC) + sum(agvsPerWC)):
             for j in range(totalAttributes):
                 m_t_mean[m][j] = (beta_1 * m_t_mean[m][j] + (1 - beta_1) * delta_mean_final[m][j])
                 v_t_mean[m][j] = (beta_2 * v_t_mean[m][j] + (1 - beta_2) * delta_mean_final[m][j] ** 2)
@@ -1649,8 +1660,8 @@ if __name__ == '__main__':
     simulation_parameter_4 = [False]
 
     # Simulation Parameter 5 - Number of AGVs
-    simulation_parameter_5 = [[2, 2, 2, 2, 2]]
-    # simulation_parameter_5 = [[3, 3, 3, 3, 3, 3, 3, 3]]
+    simulation_parameter_5 = [agvsPerWC]
+
 
     if scenario == 1:  # scenario 1
         min_jobs = [499, 999, 1499]  # Minimum number of jobs in order te reach steady state
@@ -1687,11 +1698,6 @@ if __name__ == '__main__':
         JAFAMT_value = c
         immediate_release_bool = d
         agvsPerWC = e
-
-        created_travel_time_matrix, agvsPerWC_new, agv_number_WC_new = Travel_matrix.choose_distance_matrix(
-            AGV_selection, agvsPerWC)
-        agvsPerWC_list = agvsPerWC_new
-        agv_number_WC_list = agv_number_WC_new
 
         print("Simulation:", "(" + str(a) + "-" + str(b) + "-" + str(c) + "-" + str(d) + ")")
 
@@ -1737,5 +1743,4 @@ if __name__ == '__main__':
                        min_jobs[util + 1],
                        max_jobs[util + 1], wip_max[util + 1],
                        AGV_rule,
-                       created_travel_time_matrix, immediate_release_bool, JAFAMT_value, agvsPerWC_list,
-                       agv_number_WC_list)
+                       created_travel_time_matrix, immediate_release_bool, JAFAMT_value)
