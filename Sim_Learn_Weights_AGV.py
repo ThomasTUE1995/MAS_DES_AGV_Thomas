@@ -1645,7 +1645,7 @@ if __name__ == '__main__':
     # 7: Longest Average Waiting Time At Pickup Point (JOB) - Minimal Transfer Rule (AGV)
     # 8: Earliest Due Time (JOB) - Minimal Transfer Rule (AGV)
     # 9: Earliest Release Time (JOB) - Minimal Transfer Rule (AGV)
-    simulation_parameter_1 = [2]
+    simulation_parameter_1 = [1]
 
     # Simulation Parameter 2 - Number of AGVs per work center
     # 1: Manual number - ZERO TRAVEL TIME!
@@ -1676,7 +1676,7 @@ if __name__ == '__main__':
     # arrival_time = [1.5429, 1.4572, 1.3804]
     arrival_time = [arrival_rate[0]]
 
-    learning_decay_rate = [10, 100, 500, 200, 2500, 5000, 10000]
+    learning_decay_rate = [10, 100, 500, 1000, 2500, 5000, 10000]
 
     utilization = [90]
 
@@ -1736,7 +1736,7 @@ if __name__ == '__main__':
                 agvsPerWC) + "/Attribute_Runs/" + str(
                 utilization[util]) + "-" + str(
                 due_date_settings[util]) + "/Run-weights-" + str(utilization[util]) + "-" + str(
-                due_date_settings[util]) + "-" + str(learning_decay_rate[3])
+                due_date_settings[util])
 
             run_linear(str1, str2, arrival_time[util], due_date_settings[util], learning_decay_rate[3],
                        normalization_MA_array[util], normalization_AGV_array[util],
