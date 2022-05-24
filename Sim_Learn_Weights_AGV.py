@@ -73,7 +73,7 @@ totalAttributes = max(noAttributesMA + noAttributesJobMA, noAttributesAGV + noAt
 
 FIFO_agv_queue = False  # True is FIFO enabled
 
-no_generation = 200
+no_generation = 1000
 
 
 # %% Dispatching rules
