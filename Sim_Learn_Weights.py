@@ -41,7 +41,7 @@ noAttributes = 8
 noAttributesJob = 4
 totalAttributes = noAttributes + noAttributesJob
 
-no_generation = 50
+no_generation = 1000
 
 
 def list_duplicates(seq):
