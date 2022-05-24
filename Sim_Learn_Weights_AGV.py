@@ -1117,7 +1117,7 @@ def cfp_wc_ma(env, machine, store, job_shop, currentWC, normalization):
             c = bid_winner_ma(env, store.items, machinesPerWC[currentWC - 1], currentWC, job_shop,
                               machine, store, normalization)
 
-            env.process(c)
+            yield env.process(c)
 
         tib = 0.5  # Frequency of when CFPs are sent out
         yield env.timeout(tib)
@@ -1144,20 +1144,20 @@ def cfp_wc_agv(env, agvs, AGVstore, job_shop, currentWC, normalization, dispatch
                 c = bid_winner_agv_per_WC(env, job_list, agvsPerWC[currentWC - 1], currentWC, job_shop,
                                           agvs, AGVstore, normalization, agv_number_WC)
 
-                env.process(c)
+                yield env.process(c)
 
             # Bidding control - No AGV dedicated to WC
             if dispatch_rule_no == 2:
                 c = bid_winner_agv_all_WC(env, job_list, agvsPerWC, currentWC, job_shop,
                                           agvs, AGVstore, normalization, agv_number_WC)
 
-                env.process(c)
+                yield env.process(c)
 
             # Dispatch control
             if dispatch_rule_no > 2:
                 c = dispatch_control(env, job_list, agvsPerWC[currentWC - 1], currentWC, job_shop, agvs, AGVstore,
                                      dispatch_rule_no, agvsPerWC, agv_number_WC)
-                env.process(c)
+                yield env.process(c)
 
         if immediate_release:
 
@@ -1269,9 +1269,9 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
 
         env.process(
             cfp_wc_agv(env, job_shop.agv_queue_per_wc, AGVstoreWC, job_shop, wc + 1, norm_range_agv, AGV_rule,
-                       immediate_release_bool, agvsPerWC, agv_number_WC_list))
+                       immediate_release_bool, agvsPerWC_list, agv_number_WC_list))
 
-        for ii in range(agvsPerWC[wc]):
+        for ii in range(agvsPerWC_list[wc]):
             agv = job_shop.agv_queue_per_wc[(ii, wc)]
             agv_buf = job_shop.agv_buffer_per_wc[(ii, wc)]
 
@@ -1323,9 +1323,9 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
 
         env.process(
             cfp_wc_agv(env, job_shop.agv_queue_per_wc, AGVstoreWC, job_shop, wc + 1, norm_range_agv, AGV_rule,
-                       immediate_release_bool, agvsPerWC, agv_number_WC_list))
+                       immediate_release_bool, agvsPerWC_list, agv_number_WC_list))
 
-        for ii in range(agvsPerWC[wc]):
+        for ii in range(agvsPerWC_list[wc]):
             agv = job_shop.agv_queue_per_wc[(ii, wc)]
             agv_buf = job_shop.agv_buffer_per_wc[(ii, wc)]
             env.process(agv_processing(job_shop, wc + 1, agv_number_WC_list[wc][ii], env,
@@ -1649,7 +1649,7 @@ if __name__ == '__main__':
     simulation_parameter_4 = [False]
 
     # Simulation Parameter 5 - Number of AGVs
-    simulation_parameter_5 = [[3, 3, 3, 3, 3]]
+    simulation_parameter_5 = [[2, 2, 2, 2, 2]]
     # simulation_parameter_5 = [[3, 3, 3, 3, 3, 3, 3, 3]]
 
     if scenario == 1:  # scenario 1
