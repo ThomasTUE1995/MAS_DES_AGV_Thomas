@@ -44,7 +44,7 @@ if scenario == 1:  # ------------ Scenario 1:
     numberOfOperations = [len(i) for i in operationOrder]
     noOfWC = range(len(machinesPerWC))
 
-    agvsPerWC_new = [3,3,3,3,3]
+    agvsPerWC_new = [1,2,2,1,1]
 
     created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(
         scenario, agvsPerWC_new)
@@ -1396,8 +1396,7 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
                     std_weight[m][j] = 0
 
     # population_size = noAttributesMA + noAttributesJobMA + noAttributesAGV + noAttributesJobAGV
-    # population_size = 16
-    population_size = 8
+    population_size = 16
 
     for i in range(sum(machinesPerWC)):
         mean_weight[i][6] = -3
