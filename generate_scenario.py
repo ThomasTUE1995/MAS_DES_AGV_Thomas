@@ -18,11 +18,7 @@ def new_scenario(max_workcenters, min_workcenters, no_of_jobs, total_machines, m
         operationOrder.append(list(np.random.choice(range(1, max_workcenters + 1), i, replace=False)))
 
     for i in range(no_of_jobs):
-        # print(operations_per_job[i])
         processingTime.append(list(np.random.uniform(min_proc, max_proc, operations_per_job[i])))
-
-    # print(operations_per_job)
-    # print(processingTime)
 
     workload_per_wc = np.zeros(max_workcenters)
     for i in range(no_of_jobs):
@@ -31,9 +27,7 @@ def new_scenario(max_workcenters, min_workcenters, no_of_jobs, total_machines, m
 
     division_per_workcenter = [x / sum(workload_per_wc) for x in workload_per_wc]
     machines_per_wc = [round(x * total_machines) for x in division_per_workcenter]
-    # print(sum(machines_per_wc))
     machine_number_WC = []
-    # print(workload_per_wc)
 
     k = 1
     for i in range(max_workcenters):
@@ -44,12 +38,9 @@ def new_scenario(max_workcenters, min_workcenters, no_of_jobs, total_machines, m
     max_setup = setup_factor * max(max(processingTime))
     b = np.random.uniform(0, max_setup, size=(no_of_jobs, no_of_jobs))
     setupTime = (b + b.T) / 2
+
     for i in range(no_of_jobs):
         setupTime[i][i] = 0
-
-    # setupTime = pd.DataFrame(setupTime)
-    # file_name = f"Setup_Time_New1.csv"
-    # setupTime.to_csv(file_name)
 
     # Calculate arrival rate
     utilization = [uti]
@@ -65,7 +56,6 @@ def new_scenario(max_workcenters, min_workcenters, no_of_jobs, total_machines, m
                 job_in_wc[w].append([j, operationOrder[j].index(w + 1)])
 
     for i in job_in_wc:
-        # mean_setup.append([])
         for j in i:
             for k in i:
                 mean_setup[j[0]][j[1]] += setupTime[j[0]][k[0]] * demand[k[0]]
@@ -92,7 +82,7 @@ def new_scenario(max_workcenters, min_workcenters, no_of_jobs, total_machines, m
     return processingTime, operationOrder, machines_per_wc, list(setupTime), demand, list(priority_per_job), arrival_rate, machine_number_WC, max(CR), max(DDT)
 
 
-
+processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = new_scenario(5, 2, 5, 16, 2, 9, 0.20, 0.90)
 
 
 

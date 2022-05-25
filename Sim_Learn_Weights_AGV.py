@@ -41,13 +41,15 @@ scenario = 1
 if scenario == 1:  # ------------ Scenario 1:
     processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = generate_scenario.new_scenario(
         5, 2, 5, 16, 2, 9, 0.20, 0.90)
+
     numberOfOperations = [len(i) for i in operationOrder]
     noOfWC = range(len(machinesPerWC))
 
-    agvsPerWC_new = [1,2,2,1,1]
+    agvsPerWC_new = [2, 2, 2, 2, 2]
 
     created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(
         scenario, agvsPerWC_new)
+
 
 else:  # ----------- Scenario 2:
     processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = generate_scenario.new_scenario(
@@ -55,7 +57,7 @@ else:  # ----------- Scenario 2:
     numberOfOperations = [len(i) for i in operationOrder]
     noOfWC = range(len(machinesPerWC))
 
-    agvsPerWC_new = [3,3,3,3,3,3,3,3]
+    agvsPerWC_new = [3, 3, 3, 3, 3, 3, 3, 3]
 
     created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(
         scenario, agvsPerWC_new)
@@ -67,7 +69,7 @@ noAttributesMA = 9
 noAttributesAGV = 7
 
 noAttributesJobMA = 4
-noAttributesJobAGV = 5
+noAttributesJobAGV = 6
 
 totalAttributes = max(noAttributesMA + noAttributesJobMA, noAttributesAGV + noAttributesJobAGV)
 
@@ -894,7 +896,7 @@ def choose_job_queue_ma(job_weights, machinenumber, processing_time, due_date, e
     return sum(attribute_job)
 
 
-def choose_job_queue_agv(job_weights, job, normalization, agv, agvnumber, env, due_date, job_priority, job_shop):
+def choose_job_queue_agv(job_weights, job, normalization, agv, agvnumber, env, due_date, job_priority, job_shop, remaining_pt, JAFAMT):
     """Calculates prioirities of jobs in an agv queue"""
 
     # job.location = [depot, WC1, WC2, WC3, WC4, WC5]
@@ -911,13 +913,16 @@ def choose_job_queue_agv(job_weights, job, normalization, agv, agvnumber, env, d
     attribute_job[3] = ((due_date - env.now - normalization[4]) / (normalization[5] - normalization[4])) * \
                        job_weights[sum(machinesPerWC) + agvnumber - 1][
                            noAttributesAGV + 3]  # Due date
-    attribute_job[4] = 0
+    attribute_job[4] = (remaining_pt / (JAFAMT+0.00000001)) * job_weights[sum(machinesPerWC) + agvnumber - 1][
+                           noAttributesAGV + 4]  # remaining_pt
+
+    attribute_job[5] = 0
 
     return sum(attribute_job)
 
 
 def agv_processing(job_shop, currentWC, agv_number, env, agv, normalization, agv_buf,
-                   agv_number_WC):
+                   agv_number_WC, JAFAMT):
     """This refers to an AGV Agent in the system. It checks which jobs it wants to transfer
         next to machines and stores relevant information regarding it."""
 
@@ -935,10 +940,18 @@ def agv_processing(job_shop, currentWC, agv_number, env, agv, normalization, agv
 
             else:
                 for job in agv[0].items:
+
+                    if job.finished_job:
+                        remaining_pt = 0
+                    elif job.currentOperation == 1:
+                        remaining_pt = 0
+                    else:
+                        remaining_pt = job.actual_finish_proc_time - env.now
+
                     job_queue_priority = choose_job_queue_agv(job_shop.weights, job, normalization, agv, agv_number,
                                                               env,
                                                               job.dueDate[job.currentOperation],
-                                                              job.priority, job_shop)  # Calulate the job priorities
+                                                              job.priority, job_shop, remaining_pt, JAFAMT)  # Calulate the job priorities
                     priority_list.append(job_queue_priority)
 
                 ind_processing_job = priority_list.index(max(priority_list))  # Get the job with the highest value
@@ -1067,6 +1080,9 @@ def machine_processing(job_shop, currentWC, machine_number, env, last_job, machi
             time_in_processing = next_job.processingTime[
                                      next_job.currentOperation - 1] + setuptime  # Total time the machine needs to process the job
 
+            next_job.finished_job = False
+            next_job.actual_finish_proc_time = time_in_processing + env.now
+
             makespan[relative_machine] = set_makespan(makespan[relative_machine], next_job, env, setuptime)
 
             last_job[relative_machine] = next_job.type
@@ -1101,8 +1117,14 @@ def machine_processing(job_shop, currentWC, machine_number, env, last_job, machi
 
             next_job.finishing_time_machine = env.now
 
+            next_job.finished_job = True
+
+
+
             if not next_job.job_in_progress.triggered:
                 next_job.job_in_progress.succeed()
+
+
 
             next_workstation(next_job, job_shop, env, min_job, max_job, max_wip)  # Send the job to the next workstation
 
@@ -1225,7 +1247,6 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
 
     for mm in range(sum(machinesPerWC)):
         for jj in range(totalAttributes):
-            # if (jj >= min(totalAttributes, noAttributesMA+noAttributesJobMA)) | (jj == noAttributesMA - 1) | (jj == noAttributesMA + noAttributesJobMA - 1):
             if (jj >= min(totalAttributes, noAttributesMA + noAttributesJobMA)) | (jj == noAttributesMA - 1):
                 eta_new[mm][jj] = 0
                 test_weights_pos[mm][jj] = 0
@@ -1286,7 +1307,7 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
             agv_buf = job_shop.agv_buffer_per_wc[(ii, wc)]
 
             env.process(agv_processing(job_shop, wc + 1, agv_number_WC[wc][ii], env,
-                                       agv, norm_range_agv, agv_buf, agv_number_WC))
+                                       agv, norm_range_agv, agv_buf, agv_number_WC, JAFAMT_value))
 
     job_shop.end_event = env.event()
 
@@ -1339,7 +1360,7 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
             agv = job_shop.agv_queue_per_wc[(ii, wc)]
             agv_buf = job_shop.agv_buffer_per_wc[(ii, wc)]
             env.process(agv_processing(job_shop, wc + 1, agv_number_WC[wc][ii], env,
-                                       agv, norm_range_agv, agv_buf, agv_number_WC))
+                                       agv, norm_range_agv, agv_buf, agv_number_WC, JAFAMT_value))
 
     job_shop.end_event = env.event()
 
@@ -1374,11 +1395,8 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
     mean_weight = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
     std_weight = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
 
-    # TODO: (j in bid_skip) | (j in [x + noAttributesMA + noAttributesAGV for x in seq_skip]):
-
     for m in range(sum(machinesPerWC)):
         for j in range(totalAttributes):
-            # if (j >= min(totalAttributes, noAttributesMA+noAttributesJobMA)) | (j == noAttributesMA - 1) | (j == noAttributesMA + noAttributesJobMA - 1):
             if (j >= min(totalAttributes, noAttributesMA + noAttributesJobMA)) | (j == noAttributesMA - 1):
                 std_weight[m][j] = 0
             else:
@@ -1615,6 +1633,9 @@ class New_Job:
         self.dueDate = np.zeros(numberOfOperations[self.type - 1] + 1)
         self.dueDate[0] = env.now
 
+        self.actual_finish_proc_time = 0
+        self.finished_job = False
+
         self.finishing_time_machine = 0
         self.average_waiting_time_pickup = 0
 
@@ -1644,7 +1665,7 @@ if __name__ == '__main__':
     # 7: Longest Average Waiting Time At Pickup Point (JOB) - Minimal Transfer Rule (AGV)
     # 8: Earliest Due Time (JOB) - Minimal Transfer Rule (AGV)
     # 9: Earliest Release Time (JOB) - Minimal Transfer Rule (AGV)
-    simulation_parameter_1 = [1]
+    simulation_parameter_1 = [2]
 
     # Simulation Parameter 2 - Number of AGVs per work center
     # 1: Manual number - ZERO TRAVEL TIME!
@@ -1653,7 +1674,7 @@ if __name__ == '__main__':
     simulation_parameter_2 = [scenario]
 
     # Simulation Parameter 3 - Job almost finished at machines trigger values
-    simulation_parameter_3 = [0.0]
+    simulation_parameter_3 = [1.0]
 
     # Simulation Parameter 4 - Direct or periodically job release APA (Direct = True)
     simulation_parameter_4 = [False]

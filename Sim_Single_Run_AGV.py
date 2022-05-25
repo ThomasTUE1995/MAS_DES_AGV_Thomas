@@ -46,7 +46,7 @@ if scenario == 1:  # ------------ Scenario 1:
     numberOfOperations = [len(i) for i in operationOrder]
     noOfWC = range(len(machinesPerWC))
 
-    agvsPerWC_new = [3, 3, 3, 3, 3]
+    agvsPerWC_new = [1, 2, 2, 1, 1]
 
     created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(
         scenario, agvsPerWC_new)
@@ -85,7 +85,7 @@ noAttributesMA = 9
 noAttributesAGV = 7
 
 noAttributesJobMA = 4
-noAttributesJobAGV = 5
+noAttributesJobAGV = 6
 
 totalAttributes = max(noAttributesMA + noAttributesJobMA, noAttributesAGV + noAttributesJobAGV)
 
@@ -1101,7 +1101,7 @@ def choose_job_queue_ma(job_weights, machinenumber, processing_time, due_date, e
     return sum(attribute_job)
 
 
-def choose_job_queue_agv(job_weights, job, normalization, agv, agvnumber, env, due_date, job_priority, job_shop):
+def choose_job_queue_agv(job_weights, job, normalization, agv, agvnumber, env, due_date, job_priority, job_shop, remaining_pt, JAFAMT):
     """Calculates prioirities of jobs in an agv queue"""
 
     global count
@@ -1120,7 +1120,9 @@ def choose_job_queue_agv(job_weights, job, normalization, agv, agvnumber, env, d
     attribute_job[3] = ((due_date - env.now - normalization[4]) / (normalization[5] - normalization[4])) * \
                        job_weights[sum(machinesPerWC) + agvnumber - 1][
                            noAttributesAGV + 3]  # Due date
-    attribute_job[4] = 0
+    attribute_job[4] = (remaining_pt / (JAFAMT + 0.00000001)) * job_weights[sum(machinesPerWC) + agvnumber - 1][
+        noAttributesAGV + 4]  # remaining_pt
+    attribute_job[5] = 0
 
     """attribute1 = [0] * noAttributesJobAGV
     attribute1[0] = (job_priority - 1) / (10 - 1) 
@@ -1143,7 +1145,7 @@ def choose_job_queue_agv(job_weights, job, normalization, agv, agvnumber, env, d
 
 
 def agv_processing(job_shop, currentWC, agv_number, env, agv, normalization, agv_buf,
-                   agv_number_WC):
+                   agv_number_WC, JAFAMT):
     """This refers to an AGV Agent in the system. It checks which jobs it wants to transfer
         next to machines and stores relevant information regarding it."""
 
@@ -1164,10 +1166,18 @@ def agv_processing(job_shop, currentWC, agv_number, env, agv, normalization, agv
 
             else:
                 for job in agv[0].items:
+
+                    if job.finished_job:
+                        remaining_pt = 0
+                    elif job.currentOperation == 1:
+                        remaining_pt = 0
+                    else:
+                        remaining_pt = job.actual_finish_proc_time - env.now
+
                     job_queue_priority = choose_job_queue_agv(job_shop.weights, job, normalization, agv, agv_number,
                                                               env,
                                                               job.dueDate[job.currentOperation],
-                                                              job.priority, job_shop)  # Calulate the job priorities
+                                                              job.priority, job_shop, remaining_pt, JAFAMT)  # Calulate the job priorities
                     priority_list.append(job_queue_priority)
 
                 ind_processing_job = priority_list.index(max(priority_list))  # Get the job with the highest value
@@ -1387,6 +1397,9 @@ def machine_processing(job_shop, currentWC, machine_number, env, last_job, machi
             setuptime = setup_time[ind_processing_job]
             time_in_processing = next_job.processingTime[
                                      next_job.currentOperation - 1] + setuptime  # Total time the machine needs to process the job
+
+            next_job.finished_job = False
+            next_job.actual_finish_proc_time = time_in_processing + env.now
 
             makespan[relative_machine] = set_makespan(makespan[relative_machine], next_job, env, setuptime)
 
@@ -1809,7 +1822,7 @@ def get_objectives(job_shop, min_job, max_job, early_termination):
 
 def do_simulation_with_weights(mean_weights, arrivalMean, due_date_tightness, min_job, max_job,
                                normalization_ma, normalization_AGV, max_wip, AGV_rule_no, travel_time_matrix,
-                               immediate_release, JAFAMT, iter1):
+                               immediate_release, JAFAMT_value, iter1):
     """ This runs a single simulation"""
 
     random.seed(iter1)
@@ -1839,7 +1852,7 @@ def do_simulation_with_weights(mean_weights, arrivalMean, due_date_tightness, mi
             env.process(
                 machine_processing(job_shop, wc + 1, machine_number_WC[wc][ii], env, last_job,
                                    machine, makespanWC, min_job, max_job, normalization_ma, max_wip,
-                                   machine_buf, JAFAMT))
+                                   machine_buf, JAFAMT_value))
 
         env.process(
             cfp_wc_agv(env, job_shop.agv_queue_per_wc, AGVstoreWC, job_shop, wc + 1, normalization_AGV, AGV_rule_no,
@@ -1850,7 +1863,7 @@ def do_simulation_with_weights(mean_weights, arrivalMean, due_date_tightness, mi
             agv_buf = job_shop.agv_buffer_per_wc[(ii, wc)]
 
             env.process(agv_processing(job_shop, wc + 1, agv_number_WC[wc][ii], env,
-                                       agv, normalization_AGV, agv_buf, agv_number_WC))
+                                       agv, normalization_AGV, agv_buf, agv_number_WC. JAFAMT_value))
 
     job_shop.end_event = env.event()
 
@@ -2036,6 +2049,9 @@ class New_Job:
         self.dueDate = np.zeros(numberOfOperations[self.type - 1] + 1)
         self.dueDate[0] = env.now
 
+        self.actual_finish_proc_time = 0
+        self.finished_job = False
+
         self.finishing_time_machine = 0
         self.average_waiting_time_pickup = 0
 
@@ -2055,8 +2071,8 @@ class New_Job:
 
 if __name__ == '__main__':
 
-    no_runs = 1
-    no_processes = 1  # Change dependent on number of threads computer has, be sure to leave 1 thread remaining
+    no_runs = 60
+    no_processes = 6  # Change dependent on number of threads computer has, be sure to leave 1 thread remaining
 
     # Simulation Parameter 1 - AGV scheduling control:
     # 1: Linear Bidding Auction - AGVs Dedicated to WC
