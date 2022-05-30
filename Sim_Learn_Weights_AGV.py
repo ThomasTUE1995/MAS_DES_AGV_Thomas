@@ -34,34 +34,56 @@ warnings.filterwarnings('ignore')
 # General Settings
 number = 0  # Max number of jobs if infinite is false
 noJobCap = True  # For infinite
-maxTime = 10000.0  # Runtime limit
+maxTime = 10_000  # Runtime limit
 
-scenario = 1
+scenario = "scenario_2"
 
-if scenario == 1:  # ------------ Scenario 1:
-    processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = generate_scenario.new_scenario(
-        5, 2, 5, 16, 2, 9, 0.20, 0.90)
+situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [2, 2, 2, 2, 2], 250, 10_000, 150, 0.90],
+              'scenario_2': [[5, 2], 5, 16, [10, 50], [2, 2, 2, 2, 2], 300, 50_000, 150, 0.80],
+              'scenario_3': [[5, 2], 5, 32, [2, 9], [0], 250, 10_000, 150, 0.90],
+              'scenario_4': [[5, 2], 5, 32, [10, 50], [0], 250, 10_000, 150, 0.90],
+              'scenario_5': [[5, 2], 20, 16, [2, 9], [0], 250, 10_000, 150, 0.90],
+              'scenario_6': [[5, 2], 20, 16, [10, 50], [0], 250, 10_000, 150, 0.90],
+              'scenario_7': [[5, 2], 20, 32, [2, 9], [0], 250, 10_000, 150, 0.90],
+              'scenario_8': [[5, 2], 20, 32, [10, 50], [0], 250, 10_000, 150, 0.90],
+              'scenario_9': [[10, 2], 5, 16, [2, 9], [0], 250, 10_000, 150, 0.90],
+              'scenario_10': [[10, 2], 5, 16, [10, 50], [0], 250, 10_000, 150, 0.90],
+              'scenario_11': [[10, 2], 5, 32, [2, 9], [0], 250, 10_000, 150, 0.90],
+              'scenario_12': [[10, 2], 5, 32, [10, 50], [0], 250, 10_000, 150, 0.90],
+              'scenario_13': [[10, 2], 20, 16, [2, 9], [0], 250, 10_000, 150, 0.90],
+              'scenario_14': [[10, 2], 20, 16, [10, 50], [0], 250, 10_000, 150, 0.90],
+              'scenario_15': [[10, 2], 20, 32, [2, 9], [0], 250, 10_000, 150, 0.90],
+              'scenario_16': [[10, 2], 20, 32, [10, 50], [0], 250, 10_000, 150, 0.90]}
 
-    numberOfOperations = [len(i) for i in operationOrder]
-    noOfWC = range(len(machinesPerWC))
 
-    agvsPerWC_new = [2, 2, 2, 2, 2]
-
-    created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(
-        scenario, agvsPerWC_new)
+# Working situations:
+# - scenario_1
 
 
-else:  # ----------- Scenario 2:
-    processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = generate_scenario.new_scenario(
-        8, 4, 8, 26, 2, 9, 0.20, 0.70)
-    numberOfOperations = [len(i) for i in operationOrder]
-    noOfWC = range(len(machinesPerWC))
+max_workcenters = situations[scenario][0][0]
+min_workcenters = situations[scenario][0][1]
+no_of_jobs = situations[scenario][1]
+total_machines = situations[scenario][2]
+min_proc = situations[scenario][3][0]
+max_proc = situations[scenario][3][1]
+agvsPerWC_new = situations[scenario][4]
+max_wip = situations[scenario][5]
+maxTime = situations[scenario][6]
+seed = situations[scenario][7]
+uti = situations[scenario][8]
+setup_factor = 0.20
 
-    agvsPerWC_new = [3, 3, 3, 3, 3, 3, 3, 3]
+processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = generate_scenario.new_scenario(
+        max_workcenters, min_workcenters, no_of_jobs, total_machines, min_proc, max_proc, setup_factor, uti, seed)
 
-    created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(
-        scenario, agvsPerWC_new)
 
+numberOfOperations = [len(i) for i in operationOrder]
+noOfWC = range(len(machinesPerWC))
+
+arrival_rate = [arrival_rate[0] - 0]
+print(arrival_rate)
+
+created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(agvsPerWC_new, machinesPerWC)
 
 
 "Initial parameters of the GES"
@@ -71,11 +93,15 @@ noAttributesAGV = 7
 noAttributesJobMA = 4
 noAttributesJobAGV = 6
 
+job_location_set = {"d": 1}
+for location in noOfWC:
+    job_location_set[location] = location+2
+
 totalAttributes = max(noAttributesMA + noAttributesJobMA, noAttributesAGV + noAttributesJobAGV)
 
 FIFO_agv_queue = False  # True is FIFO enabled
 
-no_generation = 1000
+no_generation = 750
 
 
 # %% Dispatching rules
@@ -845,7 +871,15 @@ def next_workstation(job, job_shop, env, min_job, max_job, max_wip):
                 job_shop.finish_time = env.now
                 job_shop.end_event.succeed()
 
-        if (job_shop.WIP > max_wip) | (env.now > 10_000):
+        if (job_shop.WIP > max_wip) | (env.now > maxTime):
+
+            """if job_shop.WIP > max_wip:
+                print("To much WIP")
+            elif env.now > 10_000:
+                print("Time eslaped")
+            else:
+                print("bad simulation")"""
+
             job_shop.end_event.succeed()
             job_shop.early_termination = 1
             job_shop.finish_time = env.now
@@ -899,8 +933,7 @@ def choose_job_queue_ma(job_weights, machinenumber, processing_time, due_date, e
 def choose_job_queue_agv(job_weights, job, normalization, agv, agvnumber, env, due_date, job_priority, job_shop, remaining_pt, JAFAMT):
     """Calculates prioirities of jobs in an agv queue"""
 
-    # job.location = [depot, WC1, WC2, WC3, WC4, WC5]
-    job_location_set = {"d": 1, 0: 2, 1: 3, 2: 4, 3: 5, 4: 6}
+
 
     attribute_job = [0] * noAttributesJobAGV
     attribute_job[0] = (job_priority - 1) / (10 - 1) * job_weights[sum(machinesPerWC) + agvnumber - 1][
@@ -908,8 +941,16 @@ def choose_job_queue_agv(job_weights, job, normalization, agv, agvnumber, env, d
     attribute_job[1] = (job_shop.travel_time_matrix[agv[1]][job.location] / 1.5) * \
                        job_weights[sum(machinesPerWC) + agvnumber - 1][
                            noAttributesAGV + 1]  # Job travel distance
-    attribute_job[2] = (job_location_set[job.location[0]] / 6) * job_weights[sum(machinesPerWC) + agvnumber - 1][
+
+
+    if job.location[0] == "d":
+        job_location = "d"
+    else:
+        job_location = job.location[1]
+
+    attribute_job[2] = (job_location_set[job_location] / len(job_location_set)) * job_weights[sum(machinesPerWC) + agvnumber - 1][
         noAttributesAGV + 2]  # Job location
+
     attribute_job[3] = ((due_date - env.now - normalization[4]) / (normalization[5] - normalization[4])) * \
                        job_weights[sum(machinesPerWC) + agvnumber - 1][
                            noAttributesAGV + 3]  # Due date
@@ -1319,7 +1360,7 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
             objective_new[0] = 20_000
             max_tard[0] = 1000
         else:
-            objective_new[0] = np.nanmean(np.nonzero(job_shop.tardiness[min_job:max_job])) + 10_000 - np.count_nonzero(
+            objective_new[0] = np.nanmean(np.nonzero(job_shop.tardiness[min_job:max_job])) + maxTime - np.count_nonzero(
                 job_shop.flowtime[min_job:max_job]) + 0.01 * max(job_shop.tardiness[min_job:max_job])
 
             max_tard[0] = np.nanmax(job_shop.tardiness[min_job:max_job])
@@ -1372,7 +1413,7 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
             objective_new[1] = 20000
             max_tard[1] = 1000
         else:
-            objective_new[1] = np.nanmean(np.nonzero(job_shop.tardiness[min_job:max_job])) + 10_000 - np.count_nonzero(
+            objective_new[1] = np.nanmean(np.nonzero(job_shop.tardiness[min_job:max_job])) + maxTime - np.count_nonzero(
                 job_shop.flowtime[min_job:max_job]) + 0.01 * max(job_shop.tardiness[min_job:max_job])
 
             max_tard[1] = np.nanmax(job_shop.tardiness[min_job:max_job])
@@ -1667,36 +1708,20 @@ if __name__ == '__main__':
     # 9: Earliest Release Time (JOB) - Minimal Transfer Rule (AGV)
     simulation_parameter_1 = [2]
 
-    # Simulation Parameter 2 - Number of AGVs per work center
-    # 1: Manual number - ZERO TRAVEL TIME!
-    # 2: Scenario 1
-    # 3: Scenario 2
-    simulation_parameter_2 = [scenario]
-
-    # Simulation Parameter 3 - Job almost finished at machines trigger values
-    simulation_parameter_3 = [1.0]
+    # Simulation Parameter 2 - Job almost finished at machines trigger values
+    simulation_parameter_2 = [0.0]
 
     # Simulation Parameter 4 - Direct or periodically job release APA (Direct = True)
-    simulation_parameter_4 = [False]
+    simulation_parameter_3 = [False]
 
-    # Simulation Parameter 5 - Number of AGVs
-    simulation_parameter_5 = [agvsPerWC]
-
-
-    if scenario == 1:  # scenario 1
-        min_jobs = [499, 999, 1499]  # Minimum number of jobs in order te reach steady state
-        max_jobs = [2499, 2999, 3499]  # Maximum number of jobs to collect information from
-        wip_max = [150, 250, 300]  # Maximum WIP allowed in the system
-
-    else:  # scenario 2
-        min_jobs = [499, 999, 1499]  # Minimum number of jobs in order te reach steady state
-        max_jobs = [2499, 2999, 3499]  # Maximum number of jobs to collect information from
-        wip_max = [150, 400, 300]  # Maximum WIP allowed in the system"""
+    min_jobs = [499, 999, 1499]  # Minimum number of jobs in order te reach steady state
+    max_jobs = [2499, 2999, 3499]  # Maximum number of jobs to collect information from
+    wip_max = [150, max_wip, 300]  # Maximum WIP allowed in the system
 
     # arrival_time = [1.5429, 1.4572, 1.3804]
     arrival_time = [arrival_rate[0]]
 
-    learning_decay_rate = [10, 100, 500, 1000, 2500, 5000, 10000]
+    learning_decay_rate = [10, 100, 500, 750, 2500, 5000, 10000]
 
     utilization = [90]
 
@@ -1710,25 +1735,22 @@ if __name__ == '__main__':
                                [-10, 25, -112.5, 225.0, -250, 225.0],
                                [-10, 25, -112.5, 225.0, -112.5, 225.0]]
 
-    for (a, b, c, d, e) in itertools.product(simulation_parameter_1, simulation_parameter_2, simulation_parameter_3,
-                                             simulation_parameter_4, simulation_parameter_5):
+    for (a, b, c) in itertools.product(simulation_parameter_1, simulation_parameter_2, simulation_parameter_3):
 
         AGV_rule = a
-        AGV_selection = b
-        JAFAMT_value = c
-        immediate_release_bool = d
-        agvsPerWC = e
+        JAFAMT_value = b
+        immediate_release_bool = c
 
-        print("Simulation:", "(" + str(a) + "-" + str(b) + "-" + str(c) + "-" + str(d) + ")")
+        print("Simulation:", "(" + str(a) + "-" + str(b) + "-" + str(c) + ")")
 
-        if simulation_parameter_1[0] == 2:
+        if AGV_rule == 2:
             sim_par_1_string = "AGV_ALL_WC"
-        elif simulation_parameter_1[0] == 1:
+        elif AGV_rule == 1:
             sim_par_1_string = "AGV_PER_WC"
-        elif simulation_parameter_1[0] == 3:
+        elif AGV_rule == 3:
             sim_par_1_string = "DISP_RULE_3"
 
-        sim_par_2_string = "JAFAMT_" + str(simulation_parameter_3[0]) + "_" + str(simulation_parameter_4[0])
+        sim_par_2_string = "JAFAMT_" + str(JAFAMT_value) + "_" + str(immediate_release_bool)
 
         for util in range(len(utilization)):
 

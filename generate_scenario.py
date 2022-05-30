@@ -4,8 +4,8 @@ import numpy.random
 import pandas as pd
 
 
-def new_scenario(max_workcenters, min_workcenters, no_of_jobs, total_machines, min_proc, max_proc, setup_factor, uti):
-    np_seed = numpy.random.seed(150)
+def new_scenario(max_workcenters, min_workcenters, no_of_jobs, total_machines, min_proc, max_proc, setup_factor, uti, seed):
+    np_seed = numpy.random.seed(seed)
 
     operationOrder = []
     processingTime = []
@@ -82,7 +82,7 @@ def new_scenario(max_workcenters, min_workcenters, no_of_jobs, total_machines, m
     return processingTime, operationOrder, machines_per_wc, list(setupTime), demand, list(priority_per_job), arrival_rate, machine_number_WC, max(CR), max(DDT)
 
 
-processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = new_scenario(5, 2, 5, 16, 2, 9, 0.20, 0.90)
+# processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = new_scenario(5, 2, 5, 16, 2, 9, 0.20, 0.90)
 
 
 

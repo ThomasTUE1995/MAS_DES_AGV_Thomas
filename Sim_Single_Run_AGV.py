@@ -43,10 +43,13 @@ scenario = 1
 if scenario == 1:  # ------------ Scenario 1:
     processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = generate_scenario.new_scenario(
         5, 2, 5, 16, 2, 9, 0.20, 0.90)
+
     numberOfOperations = [len(i) for i in operationOrder]
     noOfWC = range(len(machinesPerWC))
 
-    agvsPerWC_new = [1, 2, 2, 1, 1]
+    agvsPerWC_new = [3, 3, 3, 3, 3]
+
+    arrival_rate = [arrival_rate[0] - 0.10]
 
     created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(
         scenario, agvsPerWC_new)
@@ -1802,7 +1805,8 @@ def get_objectives(job_shop, min_job, max_job, early_termination):
             loaded = job_shop.AGV_load_unloaded[(ii, wc)][0]
             unloaded = job_shop.AGV_load_unloaded[(ii, wc)][1]
 
-            ratio = (loaded + unloaded) / loaded
+            #ratio = (loaded + unloaded) / loaded
+            ratio = 0
             load_unload_AGVs.append(ratio)
 
     # print("")
@@ -1824,6 +1828,8 @@ def do_simulation_with_weights(mean_weights, arrivalMean, due_date_tightness, mi
                                normalization_ma, normalization_AGV, max_wip, AGV_rule_no, travel_time_matrix,
                                immediate_release, JAFAMT_value, iter1):
     """ This runs a single simulation"""
+
+
 
     random.seed(iter1)
     np.random.seed(iter1)
@@ -1863,7 +1869,9 @@ def do_simulation_with_weights(mean_weights, arrivalMean, due_date_tightness, mi
             agv_buf = job_shop.agv_buffer_per_wc[(ii, wc)]
 
             env.process(agv_processing(job_shop, wc + 1, agv_number_WC[wc][ii], env,
-                                       agv, normalization_AGV, agv_buf, agv_number_WC. JAFAMT_value))
+                                       agv, normalization_AGV, agv_buf, agv_number_WC, JAFAMT_value))
+
+
 
     job_shop.end_event = env.event()
 
@@ -2116,13 +2124,13 @@ if __name__ == '__main__':
     utilization = [90]
     due_date_settings = [4, 4, 4]
 
-    normalization_MA_array = [[-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -700, 250],
+    normalization_MA_array = [[-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -10, 75],
                               [-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -700, 250],
-                              [-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -700, 250]]
+                              [-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -10, 75]]
 
-    normalization_AGV_array = [[-10, 25, -112.5, 225.0, -250, 225.0],
+    normalization_AGV_array = [[-10, 25, -112.5, 225.0, -112.5, 225.0],
                                [-10, 25, -112.5, 225.0, -250, 225.0],
-                               [-10, 25, -112.5, 225.0, -250, 225.0]]
+                               [-10, 25, -112.5, 225.0, -112.5, 225.0]]
 
     for (a, b, c, d, e) in itertools.product(simulation_parameter_1, simulation_parameter_2, simulation_parameter_3,
                                              simulation_parameter_4, simulation_parameter_5):
