@@ -40,7 +40,7 @@ scenario = "scenario_2"
 
 situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [2, 2, 2, 2, 2], 250, 10_000, 150, 0.90],
               'scenario_2': [[5, 2], 5, 16, [10, 50], [2, 2, 2, 2, 2], 300, 50_000, 150, 0.80],
-              'scenario_3': [[5, 2], 5, 32, [2, 9], [0], 250, 10_000, 150, 0.90],
+              'scenario_3': [[5, 2], 5, 32, [2, 9], [2, 2, 2, 2, 2], 250, 10_000, 150, 0.90],
               'scenario_4': [[5, 2], 5, 32, [10, 50], [0], 250, 10_000, 150, 0.90],
               'scenario_5': [[5, 2], 20, 16, [2, 9], [0], 250, 10_000, 150, 0.90],
               'scenario_6': [[5, 2], 20, 16, [10, 50], [0], 250, 10_000, 150, 0.90],
@@ -101,7 +101,7 @@ totalAttributes = max(noAttributesMA + noAttributesJobMA, noAttributesAGV + noAt
 
 FIFO_agv_queue = False  # True is FIFO enabled
 
-no_generation = 750
+no_generation = 500
 
 
 # %% Dispatching rules
@@ -1565,6 +1565,11 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
             old_tardiness = np.nanmean(mean_tardiness)
             best_weights = mean_weight
             best_sim_number = num_sim
+            file2 = open(filename2 + ".csv", 'w')
+            writer = csv.writer(file2)
+            writer.writerows(best_weights)
+            file2.close()
+            print("Best intermediate simulation generation:", best_sim_number)
 
         if num_sim == no_generation - 1:
             file2 = open(filename2 + ".csv", 'w')
@@ -1721,7 +1726,7 @@ if __name__ == '__main__':
     # arrival_time = [1.5429, 1.4572, 1.3804]
     arrival_time = [arrival_rate[0]]
 
-    learning_decay_rate = [10, 100, 500, 750, 2500, 5000, 10000]
+    learning_decay_rate = [10, 100, 500, 500, 2500, 5000, 10000]
 
     utilization = [90]
 
