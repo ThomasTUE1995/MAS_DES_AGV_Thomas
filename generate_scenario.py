@@ -75,11 +75,15 @@ def new_scenario(max_workcenters, min_workcenters, no_of_jobs, total_machines, m
     for j in range(no_of_jobs):
         CR.append([(sumProcessingTime[j] * max_ddt - sum(processingTime[j][0:i])) / sum(processingTime[j][i:]) for i in
                    range(operations_per_job[j] - 1)])
+
+
+
         DDT.append(sumProcessingTime[j] * max_ddt)
 
+    maxval = max(map(max, CR))
 
 
-    return processingTime, operationOrder, machines_per_wc, list(setupTime), demand, list(priority_per_job), arrival_rate, machine_number_WC, max(CR), max(DDT)
+    return processingTime, operationOrder, machines_per_wc, list(setupTime), demand, list(priority_per_job), arrival_rate, machine_number_WC, maxval, max(DDT)
 
 
 # processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = new_scenario(5, 2, 5, 16, 2, 9, 0.20, 0.90)
