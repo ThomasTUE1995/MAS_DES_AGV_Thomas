@@ -42,7 +42,7 @@ scenario = "scenario_1"
 
 #              SCENARIO ------ WC - JT - MACH - PROC ---- AGVS -- MAXWIP - TIME - SEED - UTI
 #              =======================================================================================================
-situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [2, 2, 2, 2, 2], 250, 10_000, 150, 0.90],  # ARR 1.5804
+situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [1, 2, 2, 2, 1], 250, 10_000, 150, 0.90],  # ARR 1.5804
               'scenario_2': [[5, 2], 5, 16, [10, 50], [2, 2, 2, 2, 2], 300, 30_000, 150, 0.90],  # ARR 8.6249
               'scenario_3': [[5, 2], 5, 32, [2, 9], [2, 2, 2, 2, 2], 350, 10_000, 150, 0.80],  # ARR 0.889
               'scenario_4': [[5, 2], 5, 32, [10, 50], [2, 2, 2, 2, 2], 400, 30_000, 150, 0.75],  # ARR 5.1749
@@ -122,7 +122,7 @@ totalAttributes = max(noAttributesMA + noAttributesJobMA, noAttributesAGV + noAt
 
 FIFO_agv_queue = False  # True is FIFO enabled
 
-no_generation = 500
+no_generation = 200
 
 
 # %% Dispatching rules
@@ -1751,7 +1751,7 @@ if __name__ == '__main__':
     # arrival_time = [1.5429, 1.4572, 1.3804]
     arrival_time = [arrival_rate[0]]
 
-    learning_decay_rate = [10, 100, 500, 500, 2500, 5000, 10000]
+    learning_decay_rate = [10, 100, 500, no_generation, 2500, 5000, 10000]
 
     utilization = [90]
 
