@@ -36,25 +36,27 @@ number = 0  # Max number of jobs if infinite is false
 noJobCap = True  # For infinite
 maxTime = 10_000  # Runtime limit
 
-SAVE = False
+SAVE = True
 
-scenario = "scenario_11"
+scenario = "scenario_15"
 
-situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [2, 2, 2, 2, 2], 250, 10_000, 150, 0.90],
-              'scenario_2': [[5, 2], 5, 16, [10, 50], [2, 2, 2, 2, 2], 300, 30_000, 150, 0.90],
-              'scenario_3': [[5, 2], 5, 32, [2, 9], [2, 2, 2, 2, 2], 350, 10_000, 150, 0.80],
-              'scenario_4': [[5, 2], 5, 32, [10, 50], [2, 2, 2, 2, 2], 400, 30_000, 150, 0.75],
-              'scenario_5': [[5, 2], 20, 16, [2, 9], [2, 2, 2, 2, 2], 250, 10_000, 150, 0.80],
-              'scenario_6': [[5, 2], 20, 16, [10, 50], [2, 2, 2, 2, 2], 300, 30_000, 150, 0.65],
-              'scenario_7': [[5, 2], 20, 32, [2, 9], [2, 2, 2, 2, 2], 400, 10_000, 150, 0.75],
-              'scenario_8': [[5, 2], 20, 32, [10, 50], [2, 2, 2, 2, 2], 300, 30_000, 150, 0.55],
+#              SCENARIO ------ WC - JT - MACH - PROC ---- AGVS -- MAXWIP - TIME - SEED - UTI
+#              =======================================================================================================
+situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [2, 2, 2, 2, 2], 250, 10_000, 150, 0.90],  # ARR 1.5804   TODO DO: AGAIN WITH NO JAFAMT
+              'scenario_2': [[5, 2], 5, 16, [10, 50], [2, 2, 2, 2, 2], 300, 30_000, 150, 0.90],  # ARR 8.6249
+              'scenario_3': [[5, 2], 5, 32, [2, 9], [2, 2, 2, 2, 2], 350, 10_000, 150, 0.80],  # ARR 0.889
+              'scenario_4': [[5, 2], 5, 32, [10, 50], [2, 2, 2, 2, 2], 400, 30_000, 150, 0.75],  # ARR 5.1749
+              'scenario_5': [[5, 2], 20, 16, [2, 9], [2, 2, 2, 2, 2], 250, 10_000, 150, 0.80],  # ARR 1.8285
+              'scenario_6': [[5, 2], 20, 16, [10, 50], [2, 2, 2, 2, 2], 300, 40_000, 150, 0.75],  # ARR 10.617   TODO: DO AGAIN!
+              'scenario_7': [[5, 2], 20, 32, [2, 9], [2, 2, 2, 2, 2], 400, 10_000, 150, 0.75],  # ARR 0.9752
+              'scenario_8': [[5, 2], 20, 32, [10, 50], [2, 2, 2, 2, 2], 300, 30_000, 150, 0.55],  # ARR 7.2389
               'scenario_9': [[10, 2], 5, 16, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 400, 20_000, 150, 0.45],  # ARR 5.006
-              'scenario_10': [[10, 2], 5, 16, [10, 50], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 400, 20_000, 150, 0.50],
+              'scenario_10': [[10, 2], 5, 16, [10, 50], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 40_000, 150, 0.60],  # ARR 18.781
               'scenario_11': [[10, 2], 5, 32, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 10_000, 150, 0.45],  # ARR 2.503
               'scenario_12': [[10, 2], 5, 32, [10, 50], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 250, 10_000, 150, 0.90],
-              'scenario_13': [[10, 2], 20, 16, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 10_000, 150, 0.45],
+              'scenario_13': [[10, 2], 20, 16, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 10_000, 150, 0.45],  # ARR 4.253
               'scenario_14': [[10, 2], 20, 16, [10, 50], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 250, 10_000, 150, 0.90],
-              'scenario_15': [[10, 2], 20, 32, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 10_000, 150, 0.45],
+              'scenario_15': [[10, 2], 20, 32, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 10_000, 150, 0.55],
               'scenario_16': [[10, 2], 20, 32, [10, 50], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 250, 10_000, 150, 0.90]}
 
 
@@ -79,6 +81,8 @@ processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority,
         max_workcenters, min_workcenters, no_of_jobs, total_machines, min_proc, max_proc, setup_factor, uti, seed)
 
 
+
+
 numberOfOperations = [len(i) for i in operationOrder]
 noOfWC = range(len(machinesPerWC))
 
@@ -86,6 +90,14 @@ arrival_rate = [arrival_rate[0] - 0]
 print(arrival_rate)
 
 created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(agvsPerWC_new, machinesPerWC)
+
+max_processing_time = 0
+max_remaining_processing_time = 0
+for job_type in range(max_processing_time):
+    print(job_type)
+    summed_pt = sum(processingTimes[job_type])
+    if summed_pt > max_processing_time:
+        max_processing_time = summed_pt
 
 
 "Initial parameters of the GES"
@@ -696,8 +708,8 @@ def bid_winner_ma(env, jobs, noOfMachines, currentWC, job_shop, machine, store,
             attributes = bid_calculation_ma(job_shop.weights, machine_number_WC[currentWC - 1][jj],
                                             job.processingTime[job.currentOperation - 1], job.currentOperation,
                                             total_rp[ii], job.dueDate[job.numberOfOperations],
-                                            env.now,
-                                            job.priority, queue_length, total_pt_ma_queue, normaliziation_range)
+                                            env.now, job.priority, queue_length, total_pt_ma_queue,
+                                            normaliziation_range, job.numberOfOperations)
 
             new_bid[ii] = attributes
 
@@ -759,10 +771,10 @@ def bid_calculation_agv(bid_weights, agvnumber, normalization, agv, job, job_sho
     attribute = [0] * noAttributesAGV
     attribute[0] = (queue_distance - normalization[0]) / (normalization[1] - normalization[0]) * \
                    bid_weights[sum(machinesPerWC) + agvnumber - 1][0]  # Total distance AGV queue
-    attribute[1] = processing_time / 8.75 * bid_weights[sum(machinesPerWC) + agvnumber - 1][1]  # Processing time
+    attribute[1] = processing_time / max_processing_time * bid_weights[sum(machinesPerWC) + agvnumber - 1][1]  # Processing time
     attribute[2] = (job_priority - 1) / (10 - 1) * bid_weights[sum(machinesPerWC) + agvnumber - 1][2]  # Job Priority
     attribute[3] = len(agv[0].items) / 25 * bid_weights[sum(machinesPerWC) + agvnumber - 1][3]  # AGV Queue length
-    attribute[4] = total_rp / 25 * bid_weights[sum(machinesPerWC) + agvnumber - 1][4]  # Remaining processing time
+    attribute[4] = total_rp / max_remaining_processing_time * bid_weights[sum(machinesPerWC) + agvnumber - 1][4]  # Remaining processing time
     attribute[5] = (due_date - now - normalization[2]) / (normalization[3] - normalization[2]) * \
                    bid_weights[sum(machinesPerWC) + agvnumber - 1][5]  # Due date
     attribute[6] = 0
@@ -772,15 +784,23 @@ def bid_calculation_agv(bid_weights, agvnumber, normalization, agv, job, job_sho
 
 def bid_calculation_ma(bid_weights, machinenumber, processing_time,
                        current, total_rp, due_date, now, job_priority, queue_length, total_pt_queue,
-                       normalization):
+                       normalization, number_operations):
     """Calulcates the bidding value of a job for MAs."""
 
     attribute = [0] * noAttributesMA
-    attribute[0] = processing_time / 8.75 * bid_weights[machinenumber - 1][0]  # processing time
-    attribute[1] = (current - 1) / (5 - 1) * bid_weights[machinenumber - 1][1]  # remaing operations
+    attribute[0] = processing_time / max_processing_time * bid_weights[machinenumber - 1][0]  # processing time
+
+
+
+    attribute[1] = (current - 1) / (number_operations - 1) * bid_weights[machinenumber - 1][1]  # remaing operations
+
     attribute[2] = (due_date - now - normalization[0]) / (normalization[1] - normalization[0]) * \
                    bid_weights[machinenumber - 1][2]  # slack
-    attribute[3] = total_rp / 25 * bid_weights[machinenumber - 1][3]  # remaining processing time
+
+
+    attribute[3] = total_rp / max_remaining_processing_time * bid_weights[machinenumber - 1][3]  # remaining processing time
+
+
     attribute[4] = (((due_date - now) / total_rp) - normalization[2]) / (normalization[3] - normalization[2]) * \
                    bid_weights[machinenumber - 1][4]  # Critical Ratio
     attribute[5] = (job_priority - 1) / (10 - 1) * bid_weights[machinenumber - 1][5]  # Job Priority
