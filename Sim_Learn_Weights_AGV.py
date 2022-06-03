@@ -42,7 +42,7 @@ scenario = "scenario_1"
 
 #              SCENARIO ------ WC - JT - MACH - PROC ---- AGVS -- MAXWIP - TIME - SEED - UTI
 #              =======================================================================================================
-situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [1, 2, 2, 2, 1], 250, 10_000, 150, 0.90],  # ARR 1.5804
+situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [1, 1, 1, 1, 1], 250, 10_000, 150, 0.90],  # ARR 1.5804
               'scenario_2': [[5, 2], 5, 16, [10, 50], [2, 2, 2, 2, 2], 300, 30_000, 150, 0.90],  # ARR 8.6249
               'scenario_3': [[5, 2], 5, 32, [2, 9], [2, 2, 2, 2, 2], 350, 10_000, 150, 0.80],  # ARR 0.889
               'scenario_4': [[5, 2], 5, 32, [10, 50], [2, 2, 2, 2, 2], 400, 30_000, 150, 0.75],  # ARR 5.1749
@@ -777,7 +777,7 @@ def bid_calculation_agv(bid_weights, agvnumber, normalization, agv, job, job_sho
 
 
     attribute = [0] * noAttributesAGV
-    attribute[0] = (queue_distance - normalization[0]) / (normalization[1] - normalization[0]) * \
+    attribute[0] = (queue_distance / 25) * \
                    bid_weights[sum(machinesPerWC) + agvnumber - 1][0]  # Total distance AGV queue
     attribute[1] = processing_time / max_processing_time * bid_weights[sum(machinesPerWC) + agvnumber - 1][
         1]  # Processing time
@@ -796,6 +796,8 @@ def bid_calculation_ma(bid_weights, machinenumber, processing_time,
                        current, total_rp, due_date, now, job_priority, queue_length, total_pt_queue,
                        normalization, number_operations):
     """Calulcates the bidding value of a job for MAs."""
+
+
 
     attribute = [0] * noAttributesMA
     attribute[0] = processing_time / max_processing_time * bid_weights[machinenumber - 1][0]  # processing time
@@ -941,6 +943,7 @@ def put_job_in_ma_queue(currentWC, choice, job, job_shop, machines):
 def choose_job_queue_ma(job_weights, machinenumber, processing_time, due_date, env,
                         setup_time, job_priority, normalization, job_present):
     """Calculates prioirities of jobs in a machines queue"""
+
 
     attribute_job = [0] * noAttributesJobMA
 
@@ -1477,6 +1480,7 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
     # population_size = noAttributesMA + noAttributesJobMA + noAttributesAGV + noAttributesJobAGV
     population_size = 16
 
+
     for i in range(sum(machinesPerWC)):
         mean_weight[i][6] = -3
         mean_weight[i][noAttributesMA] = -1
@@ -1757,13 +1761,30 @@ if __name__ == '__main__':
 
     due_date_settings = [4, 4, 4]
 
+
+
     normalization_MA_array = [[-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -10, 75],
                               [-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -700, 250],
                               [-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -10, 75]]
 
+
     normalization_AGV_array = [[-10, 25, -112.5, 225.0, -112.5, 225.0],
                                [-10, 25, -112.5, 225.0, -250, 225.0],
                                [-10, 25, -112.5, 225.0, -112.5, 225.0]]
+
+
+    # ============================
+
+
+
+    normalization_MA_array = [[-DDT*0.50, DDT, -CR, CR, -DDT*0.50, DDT, -DDT*0.50, DDT],
+                              [-DDT*0.50, DDT, -CR, CR, -DDT*0.50, DDT, -DDT*0.50, DDT],
+                              [-DDT*0.50, DDT, -CR, CR, -DDT*0.50, DDT, -DDT*0.50, DDT]]
+
+    normalization_AGV_array = [[0, 0, -DDT*0.50, DDT, -DDT*0.50, DDT],
+                               [0, 0, -DDT*0.50, DDT, -DDT*0.50, DDT],
+                               [0, 0, -DDT*0.50, DDT, -DDT*0.50, DDT]]
+
 
     for (a, b, c) in itertools.product(simulation_parameter_1, simulation_parameter_2, simulation_parameter_3):
 
