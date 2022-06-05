@@ -43,8 +43,8 @@ scenario = "scenario_1"
 #              SCENARIO ------ WC - JT - MACH - PROC ---- AGVS -- MAXWIP - TIME - SEED - UTI
 #              =======================================================================================================
 situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [1, 1, 1, 1, 1], 250, 10_000, 150, 0.90],  # ARR 1.5804
-              'scenario_2': [[5, 2], 5, 16, [10, 50], [2, 2, 2, 2, 2], 300, 30_000, 150, 0.90],  # ARR 8.6249
-              'scenario_3': [[5, 2], 5, 32, [2, 9], [2, 2, 2, 2, 2], 350, 10_000, 150, 0.80],  # ARR 0.889
+              'scenario_2': [[5, 2], 5, 16, [10, 50], [1, 1, 2, 1, 1], 300, 30_000, 150, 0.90],  # ARR 8.6249
+              'scenario_3': [[5, 2], 5, 32, [2, 9], [2, 2, 2, 2, 1], 350, 10_000, 150, 0.80],  # ARR 0.889
               'scenario_4': [[5, 2], 5, 32, [10, 50], [2, 2, 2, 2, 2], 400, 30_000, 150, 0.75],  # ARR 5.1749
               'scenario_5': [[5, 2], 20, 16, [2, 9], [2, 2, 2, 2, 2], 250, 10_000, 150, 0.80],  # ARR 1.8285
               'scenario_6': [[5, 2], 20, 16, [10, 50], [2, 2, 2, 2, 2], 300, 40_000, 150, 0.75],  # ARR 10.617   TODO: DO AGAIN!
@@ -122,7 +122,7 @@ totalAttributes = max(noAttributesMA + noAttributesJobMA, noAttributesAGV + noAt
 
 FIFO_agv_queue = False  # True is FIFO enabled
 
-no_generation = 200
+no_generation = 1000
 
 
 # %% Dispatching rules
@@ -1743,10 +1743,10 @@ if __name__ == '__main__':
     simulation_parameter_1 = [2]
 
     # Simulation Parameter 2 - Job almost finished at machines trigger values
-    simulation_parameter_2 = [0.0]
+    simulation_parameter_2 = [2.0]
 
     # Simulation Parameter 4 - Direct or periodically job release APA (Direct = True)
-    simulation_parameter_3 = [False]
+    simulation_parameter_3 = [True]
 
     min_jobs = [499, 999, 1499]  # Minimum number of jobs in order te reach steady state
     max_jobs = [2499, 2999, 3499]  # Maximum number of jobs to collect information from
