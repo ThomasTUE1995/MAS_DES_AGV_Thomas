@@ -85,10 +85,8 @@ numberOfOperations = [len(i) for i in operationOrder]
 noOfWC = range(len(machinesPerWC))
 
 arrival_rate = [arrival_rate[0] - 0]
-print(arrival_rate)
 
-
-created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(agvsPerWC_new, machinesPerWC)
+created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(agvsPerWC_new, machinesPerWC, seed)
 
 max_job_priority = max(job_priority)
 max_setup_time = np.amax(setupTime)
@@ -1728,71 +1726,124 @@ class New_Job:
 
 # %% Main
 
+
 if __name__ == '__main__':
 
-    # Simulation Parameter 1 - AGV scheduling control:
-    # 1: Linear Bidding Auction - AGVs Dedicated to WC
-    # 2: Linear Bidding Auction - AGVs Free For All
-    # 3: Nearest Idle AGV Rule (AGV & JOB)
-    # 4: Random AGV Rule (AGV) - Random Job Rule (Job)
-    # 5: Longest Time In System Rule (JOB) - Minimal Distance Rule (AGV)
-    # 6: Longest Waiting Time at Pickup Point (JOB) - Minimal Transfer Rule (AGV)
-    # 7: Longest Average Waiting Time At Pickup Point (JOB) - Minimal Transfer Rule (AGV)
-    # 8: Earliest Due Time (JOB) - Minimal Transfer Rule (AGV)
-    # 9: Earliest Release Time (JOB) - Minimal Transfer Rule (AGV)
-    simulation_parameter_1 = [2]
+    simulation = [["scenario_1", False, 0.0], ["scenario_1", True, 0.0]]
 
-    # Simulation Parameter 2 - Job almost finished at machines trigger values
-    simulation_parameter_2 = [2.0]
+    for sim in simulation:
 
-    # Simulation Parameter 4 - Direct or periodically job release APA (Direct = True)
-    simulation_parameter_3 = [True]
+        scenario = sim[0]
 
-    min_jobs = [499, 999, 1499]  # Minimum number of jobs in order te reach steady state
-    max_jobs = [2499, 2999, 3499]  # Maximum number of jobs to collect information from
-    wip_max = [150, max_wip, 300]  # Maximum WIP allowed in the system
+        max_workcenters = situations[scenario][0][0]
+        min_workcenters = situations[scenario][0][1]
+        no_of_jobs = situations[scenario][1]
+        total_machines = situations[scenario][2]
+        min_proc = situations[scenario][3][0]
+        max_proc = situations[scenario][3][1]
+        agvsPerWC_new = situations[scenario][4]
+        max_wip = situations[scenario][5]
+        maxTime = situations[scenario][6]
+        seed = situations[scenario][7]
+        uti = situations[scenario][8]
+        setup_factor = 0.20
 
-    # arrival_time = [1.5429, 1.4572, 1.3804]
-    arrival_time = [arrival_rate[0]]
+        processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = generate_scenario.new_scenario(
+            max_workcenters, min_workcenters, no_of_jobs, total_machines, min_proc, max_proc, setup_factor, uti, seed)
 
-    learning_decay_rate = [10, 100, 500, no_generation, 2500, 5000, 10000]
-
-    utilization = [90]
-
-    due_date_settings = [4, 4, 4]
+        numberOfOperations = [len(i) for i in operationOrder]
+        noOfWC = range(len(machinesPerWC))
+        arrival_rate = [arrival_rate[0] - 0]
+        created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(agvsPerWC_new,
+                                                                                                    machinesPerWC, seed)
 
 
+        max_job_priority = max(job_priority)
+        max_setup_time = np.amax(setupTime)
+        max_processing_time = 0
+        max_remaining_processing_time = 0
 
-    normalization_MA_array = [[-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -10, 75],
-                              [-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -700, 250],
-                              [-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -10, 75]]
+        for idx, job_type in enumerate(processingTimes):
+            max_pt = max(job_type)
+            summed_pt = sum(processingTimes[idx])
 
+            if max_pt > max_processing_time:
+                max_processing_time = max_pt
+            if summed_pt > max_remaining_processing_time:
+                max_remaining_processing_time = summed_pt
 
-    normalization_AGV_array = [[-10, 25, -112.5, 225.0, -112.5, 225.0],
-                               [-10, 25, -112.5, 225.0, -250, 225.0],
-                               [-10, 25, -112.5, 225.0, -112.5, 225.0]]
-
-
-    # ============================
-
-
-
-    normalization_MA_array = [[-DDT*0.50, DDT, -CR, CR, -DDT*0.50, DDT, -DDT*0.50, DDT],
-                              [-DDT*0.50, DDT, -CR, CR, -DDT*0.50, DDT, -DDT*0.50, DDT],
-                              [-DDT*0.50, DDT, -CR, CR, -DDT*0.50, DDT, -DDT*0.50, DDT]]
-
-    normalization_AGV_array = [[0, 0, -DDT*0.50, DDT, -DDT*0.50, DDT],
-                               [0, 0, -DDT*0.50, DDT, -DDT*0.50, DDT],
-                               [0, 0, -DDT*0.50, DDT, -DDT*0.50, DDT]]
+        job_location_set = {"d": 1}
+        for location in noOfWC:
+            job_location_set[location] = location + 2
 
 
-    for (a, b, c) in itertools.product(simulation_parameter_1, simulation_parameter_2, simulation_parameter_3):
 
-        AGV_rule = a
-        JAFAMT_value = b
-        immediate_release_bool = c
 
-        print("Simulation:", "(" + str(a) + "-" + str(b) + "-" + str(c) + ")")
+
+
+        # Simulation Parameter 1 - AGV scheduling control:
+        # 1: Linear Bidding Auction - AGVs Dedicated to WC
+        # 2: Linear Bidding Auction - AGVs Free For All
+        # 3: Nearest Idle AGV Rule (AGV & JOB)
+        # 4: Random AGV Rule (AGV) - Random Job Rule (Job)
+        # 5: Longest Time In System Rule (JOB) - Minimal Distance Rule (AGV)
+        # 6: Longest Waiting Time at Pickup Point (JOB) - Minimal Transfer Rule (AGV)
+        # 7: Longest Average Waiting Time At Pickup Point (JOB) - Minimal Transfer Rule (AGV)
+        # 8: Earliest Due Time (JOB) - Minimal Transfer Rule (AGV)
+        # 9: Earliest Release Time (JOB) - Minimal Transfer Rule (AGV)
+        simulation_parameter_1 = [2]
+
+        # Simulation Parameter 2 - Job almost finished at machines trigger values
+        simulation_parameter_2 = [sim[2]]
+
+        # Simulation Parameter 4 - Direct or periodically job release APA (Direct = True)
+        simulation_parameter_3 = [sim[1]]
+
+        min_jobs = [499, 999, 1499]  # Minimum number of jobs in order te reach steady state
+        max_jobs = [2499, 2999, 3499]  # Maximum number of jobs to collect information from
+        wip_max = [150, max_wip, 300]  # Maximum WIP allowed in the system
+
+        # arrival_time = [1.5429, 1.4572, 1.3804]
+        arrival_time = [arrival_rate[0]]
+
+        learning_decay_rate = [10, 100, 500, no_generation, 2500, 5000, 10000]
+
+        utilization = [90]
+
+        due_date_settings = [4, 4, 4]
+
+
+
+        """normalization_MA_array = [[-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -10, 75],
+                                  [-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -700, 250],
+                                  [-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -10, 75]]
+
+
+        normalization_AGV_array = [[-10, 25, -112.5, 225.0, -112.5, 225.0],
+                                   [-10, 25, -112.5, 225.0, -250, 225.0],
+                                   [-10, 25, -112.5, 225.0, -112.5, 225.0]]"""
+
+
+        # ============================
+
+
+
+        normalization_MA_array = [[-DDT*0.50, DDT, -CR, CR, -DDT*0.50, DDT, -DDT*0.50, DDT],
+                                  [-DDT*0.50, DDT, -CR, CR, -DDT*0.50, DDT, -DDT*0.50, DDT],
+                                  [-DDT*0.50, DDT, -CR, CR, -DDT*0.50, DDT, -DDT*0.50, DDT]]
+
+        normalization_AGV_array = [[0, 0, -DDT*0.50, DDT, -DDT*0.50, DDT],
+                                   [0, 0, -DDT*0.50, DDT, -DDT*0.50, DDT],
+                                   [0, 0, -DDT*0.50, DDT, -DDT*0.50, DDT]]
+
+
+
+
+        AGV_rule = simulation_parameter_1[0]
+        JAFAMT_value = simulation_parameter_2[0]
+        immediate_release_bool = simulation_parameter_3[0]
+
+        print("Simulation:", "(" + str(AGV_rule) + "-" + str(JAFAMT_value) + "-" + str(immediate_release_bool) + ")")
 
         if AGV_rule == 2:
             sim_par_1_string = "AGV_ALL_WC"

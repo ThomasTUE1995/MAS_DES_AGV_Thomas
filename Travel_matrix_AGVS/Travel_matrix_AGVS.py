@@ -40,7 +40,7 @@ def create_distance_matrix(machinesPerWC, load_time, seed):
     """Creates distance matrix where distance can be requested by inputting:
     distance_maxtrix[actual location][destination]"""
 
-    numpy.random.seed(seed+1)
+    numpy.random.seed(seed)
 
 
     noOfWC = range(len(machinesPerWC))
