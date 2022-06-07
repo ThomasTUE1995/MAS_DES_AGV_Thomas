@@ -1729,7 +1729,9 @@ class New_Job:
 
 if __name__ == '__main__':
 
-    simulation = [["scenario_1", False, 0.0], ["scenario_1", True, 0.0]]
+    simulation = [["scenario_1", False, 2.0]]
+
+    # ["scenario_1", False, 0.0], ["scenario_1", True, 0.0]
 
     for sim in simulation:
 
