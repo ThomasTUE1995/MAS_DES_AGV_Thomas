@@ -120,102 +120,10 @@ totalAttributes = max(noAttributesMA + noAttributesJobMA, noAttributesAGV + noAt
 
 FIFO_agv_queue = False  # True is FIFO enabled
 
-no_generation = 300
-
-DEBUG = True
+no_generation = 1000
 
 
 # %% Dispatching rules
-
-def debug(debug_type, env, job=None, WC=None, ma_number=None, agv_number=None, machine_loc=None, agv_loc=None,
-          other_wc=None):
-    if DEBUG:
-        if debug_type == 1:
-            print("CT:", round(env.now, 3), "-", job.name, "entered system ( type", job.type, ")",
-                  "and will be processed first at WC:", WC)
-
-        elif debug_type == 2:
-            print("CT:", round(env.now, 3), "-", "JPA WC", WC, ": Sended CFPs to MAs!")
-
-        elif debug_type == 3:
-            print("CT:", round(env.now, 3), "-", "APA WC", WC, ": Sended CFPs to AGVs!")
-
-        elif debug_type == 4:
-            print("CT:", round(env.now, 3), "-", "JPA WC", WC, ": CFP done!", job.name,
-                  "will be processed on MA", ma_number, "WC", WC, machine_loc)
-
-        elif debug_type == 5:
-            print("CT:", round(env.now, 3), "-", "JPA WC", WC, ": Job stored in APA", WC, "queue")
-
-        elif debug_type == 6:
-            print("CT:", round(env.now, 3), "-", "JPA WC", WC, ":", job.name, "removed from JPA", WC, "queue")
-
-        elif debug_type == 7:
-            print("CT:", round(env.now, 3), "-", "APA WC", WC, ": CFP done!", job.name, "linked to AGV",
-                  agv_number, "WC", other_wc)
-
-        elif debug_type == 8:
-            print("CT:", round(env.now, 3), "-", "APA WC", WC, ":", job.name, "removed from APA", WC, "queue")
-
-        elif debug_type == 9:
-            print("CT:", round(env.now, 3), "-", "AGV", agv_number, "WC", WC, "at", agv_loc,
-                  ": I will pick", job.name, "which is at location", job.location)
-
-        elif debug_type == 10:
-            print("CT:", round(env.now, 3), "-", "AGV", agv_number, "WC", WC, "at", agv_loc, ":", job.name,
-                  "picked up!")
-
-        elif debug_type == 11:
-            print("CT:", round(env.now, 3), "-", "AGV", agv_number, "WC", WC, "at", agv_loc,
-                  ": I will bring", job.name, "to MA", ma_number, "WC", other_wc, job.cfp_wc_ma_result)
-
-        elif debug_type == 12:
-            print("CT:", round(env.now, 3), "-", "AGV", agv_number, "WC", WC, "at", agv_loc,
-                  ": I will bring", job.name,
-                  "to depot")
-
-        elif debug_type == 13:
-            print("CT:", round(env.now, 3), "-", "AGV", agv_number, "WC", WC, "at", agv_loc,
-                  ":", job.name, "loaded on MA", ma_number, "WC", other_wc)
-
-        elif debug_type == 14:
-            print("CT:", round(env.now, 3), "-", "AGV", agv_number, "WC", WC, "at", agv_loc, ":",
-                  job.name, "dropped at depot")
-
-        elif debug_type == 15:
-            print("CT:", round(env.now, 3), "-", "MA", ma_number, "WC", WC, job.name,
-                  "not at machine")
-
-        elif debug_type == 16:
-            print("CT:", round(env.now, 3), "-", "MA", ma_number, "WC", WC, job.name,
-                  "at machine")
-
-        elif debug_type == 17:
-            print("CT:", round(env.now, 3), "-", "MA", ma_number, "WC", WC, ": Start processing",
-                  job.name)
-
-        elif debug_type == 18:
-            print("CT:", round(env.now, 3), "-", "MA", ma_number, "WC", WC, ": Finished processing of",
-                  job.name)
-
-        elif debug_type == 19:
-            print("CT:", round(env.now, 3), "-", "MA", ma_number, "WC", WC, ": Breakdown!")
-
-        elif debug_type == 20:
-            print("CT:", round(env.now, 3), "-", "AGV", agv_number, "WC", WC, ": Breakdown!")
-
-        elif debug_type == 21:
-            print("CT:", round(env.now, 3), "-", "AGV", agv_number, "WC", WC, ": Waiting on", job.name,
-                  "to be finished by MA", ma_number, "WC", other_wc)
-
-        elif debug_type == 22:
-            print("CT:", round(env.now, 3), "-", "AGV", agv_number, "WC", WC, ": Waiting for new destination", job.name)
-
-        elif debug_type == 23:
-            print("CT:", round(env.now, 3), "-", "MA", ma_number, "WC", WC, ": Repaired!")
-
-        elif debug_type == 24:
-            print("CT:", round(env.now, 3), "-", "AGV", agv_number, "WC", WC, ": Repaired!")
 
 
 # 3: Nearest Idle AGV Rule (AGV & JOB)
@@ -866,7 +774,6 @@ def bid_calculation_agv(bid_weights, agvnumber, normalization, agv, job, job_sho
     """Calulcates the bidding value of a job for AGVS."""
 
 
-
     attribute = [0] * noAttributesAGV
     attribute[0] = (queue_distance / 25) * \
                    bid_weights[sum(machinesPerWC) + agvnumber - 1][0]  # Total distance AGV queue
@@ -1213,9 +1120,6 @@ def machine_processing(job_shop, currentWC, machine_number, env, last_job, machi
                         job_present = 0
 
                     setuptime = setupTime[job.type - 1][int(last_job[relative_machine]) - 1]
-
-
-
                     job_queue_priority = choose_job_queue_ma(job_shop.weights, machine_number,
                                                              job.processingTime[job.currentOperation - 1],
                                                              job.dueDate[job.currentOperation], env, setuptime,
@@ -1363,7 +1267,6 @@ def cfp_wc_agv(env, agvs, AGVstore, job_shop, currentWC, normalization, dispatch
 def source(env, number1, interval, job_shop, due_date_setting, min_job):
     """Reflects the Job Release Agent. Samples time and then "releases" a new
     job into the system."""
-
     while True:  # Needed for infinite case as True refers to "until".
 
         ii = number1
@@ -1397,17 +1300,12 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
                                norm_range, norm_range_agv, min_job, max_job, wip_max, AGV_rule,
                                created_travel_time_matrix,
                                immediate_release_bool, JAFAMT_value, iii):
-
-
-
     eta_new = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
     objective_new = np.zeros(2)
     mean_tard = np.zeros(2)
     max_tard = np.zeros(2)
     test_weights_pos = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
     test_weights_min = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
-
-
 
     for mm in range(sum(machinesPerWC)):
         for jj in range(totalAttributes):
@@ -1442,8 +1340,6 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
     job_shop = jobShop(env, test_weights_pos, created_travel_time_matrix, agvsPerWC,
                        agv_number_WC)  # Initiate the job shop
     env.process(source(env, number, arrivalMean, job_shop, due_date_tightness, min_job))
-
-
 
     for wc in range(len(machinesPerWC)):
 
@@ -1510,8 +1406,6 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
         env.process(
             cfp_wc_ma(env, job_shop.machine_queue_per_wc, MAstoreWC, job_shop, wc + 1, norm_range))
 
-
-
         for ii in range(machinesPerWC[wc]):
             machine = job_shop.machine_queue_per_wc[(ii, wc)]
             machine_buf = job_shop.machine_buffer_per_wc[(ii, wc)]
@@ -1529,8 +1423,6 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
             agv_buf = job_shop.agv_buffer_per_wc[(ii, wc)]
             env.process(agv_processing(job_shop, wc + 1, agv_number_WC[wc][ii], env,
                                        agv, norm_range_agv, agv_buf, agv_number_WC, JAFAMT_value))
-
-
 
     job_shop.end_event = env.event()
 
@@ -1693,7 +1585,6 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
             file1.writelines(L)
 
         if np.nanmean(mean_tardiness) < old_tardiness and num_sim > (no_generation / 20):
-            print("test")
             old_tardiness = np.nanmean(mean_tardiness)
             best_weights = mean_weight
             best_sim_number = num_sim
@@ -1701,7 +1592,7 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
             if SAVE:
                 file2 = open(filename2 + ".csv", 'w')
                 writer = csv.writer(file2)
-                writer.writerows(mean_weight)
+                writer.writerows(best_weights)
                 file2.close()
             # print("Best intermediate simulation generation:", best_sim_number)
 
@@ -1710,7 +1601,7 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
             if SAVE:
                 file2 = open(filename2 + ".csv", 'w')
                 writer = csv.writer(file2)
-                writer.writerows(mean_weight)
+                writer.writerows(best_weights)
                 file2.close()
             print("Best simulation generation:", best_sim_number)
 
@@ -1838,7 +1729,7 @@ class New_Job:
 
 if __name__ == '__main__':
 
-    simulation = [["scenario_1", False, 0.0]]
+    simulation = [["scenario_1", False, 2.0]]
 
     # ["scenario_1", False, 0.0], ["scenario_1", True, 0.0]
 
@@ -1867,7 +1758,6 @@ if __name__ == '__main__':
         arrival_rate = [arrival_rate[0] - 0]
         created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(agvsPerWC_new,
                                                                                                     machinesPerWC, seed)
-
 
 
         max_job_priority = max(job_priority)
@@ -1917,8 +1807,6 @@ if __name__ == '__main__':
 
         # arrival_time = [1.5429, 1.4572, 1.3804]
         arrival_time = [arrival_rate[0]]
-
-
 
         learning_decay_rate = [10, 100, 500, no_generation, 2500, 5000, 10000]
 

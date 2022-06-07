@@ -38,7 +38,7 @@ number = 0  # Max number of jobs if infinite is false
 noJobCap = True  # For infinite
 maxTime = 10000.0  # Runtime limit
 
-scenario = "scenario_3"
+scenario = "scenario_1"
 
 #              SCENARIO ------ WC - JT - MACH - PROC ---- AGVS -- MAXWIP - TIME - SEED - UTI
 #              =======================================================================================================
@@ -1509,6 +1509,8 @@ def machine_processing(job_shop, currentWC, machine_number, env, last_job, machi
 
             next_job.finishing_time_machine = env.now
 
+            next_job.finished_job = True
+
             if not next_job.job_in_progress.triggered:
                 next_job.job_in_progress.succeed()
 
@@ -2132,8 +2134,52 @@ class New_Job:
 
 if __name__ == '__main__':
 
-    no_runs = 120
+
+
+    max_workcenters = situations[scenario][0][0]
+    min_workcenters = situations[scenario][0][1]
+    no_of_jobs = situations[scenario][1]
+    total_machines = situations[scenario][2]
+    min_proc = situations[scenario][3][0]
+    max_proc = situations[scenario][3][1]
+    agvsPerWC_new = situations[scenario][4]
+    max_wip = situations[scenario][5]
+    maxTime = situations[scenario][6]
+    seed = situations[scenario][7]
+    uti = situations[scenario][8]
+    setup_factor = 0.20
+
+    processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = generate_scenario.new_scenario(
+        max_workcenters, min_workcenters, no_of_jobs, total_machines, min_proc, max_proc, setup_factor, uti, seed)
+
+    numberOfOperations = [len(i) for i in operationOrder]
+    noOfWC = range(len(machinesPerWC))
+    arrival_rate = [arrival_rate[0] - 0]
+    created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(agvsPerWC_new,
+                                                                                                machinesPerWC, seed)
+
+    max_job_priority = max(job_priority)
+    max_setup_time = np.amax(setupTime)
+    max_processing_time = 0
+    max_remaining_processing_time = 0
+
+    for idx, job_type in enumerate(processingTimes):
+        max_pt = max(job_type)
+        summed_pt = sum(processingTimes[idx])
+
+        if max_pt > max_processing_time:
+            max_processing_time = max_pt
+        if summed_pt > max_remaining_processing_time:
+            max_remaining_processing_time = summed_pt
+
+    job_location_set = {"d": 1}
+    for location in noOfWC:
+        job_location_set[location] = location + 2
+
+    no_runs = 60
     no_processes = 6  # Change dependent on number of threads computer has, be sure to leave 1 thread remaining
+
+
 
     # Simulation Parameter 1 - AGV scheduling control:
     # 1: Linear Bidding Auction - AGVs Dedicated to WC
@@ -2151,7 +2197,7 @@ if __name__ == '__main__':
     simulation_parameter_2 = [0.0]
 
     # Simulation Parameter 4 - Direct or periodically job release APA (Direct = True)
-    simulation_parameter_3 = [True]
+    simulation_parameter_3 = [False]
 
     min_jobs = [499, 999, 1499]  # Minimum number of jobs in order te reach steady state
     max_jobs = [2499, 2999, 3499]  # Maximum number of jobs to collect information from
