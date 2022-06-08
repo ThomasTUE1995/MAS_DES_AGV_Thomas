@@ -1329,8 +1329,10 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
 
                 if AGV_rule <= 2:
 
-                    if jj == 12 and JAFAMT_value == 0:
-                        std_weight[mm][jk] = 0
+                    if jj == 11 and JAFAMT_value == 0:
+                        eta_new[mm][jj] = 0
+                        test_weights_pos[mm][jj] = 0
+                        test_weights_min[mm][jj] = 0
                     else:
                         eta_new[mm][jj] = random.gauss(0, np.exp(std_weight_new[mm][jj]))
                         test_weights_pos[mm][jj] = mean_weight_new[mm][jj] + (eta_new[mm][jj])
@@ -1340,6 +1342,7 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
                     eta_new[mm][jj] = 0
                     test_weights_pos[mm][jj] = 0
                     test_weights_min[mm][jj] = 0
+
 
     env = Environment()
     job_shop = jobShop(env, test_weights_pos, created_travel_time_matrix, agvsPerWC,
@@ -1475,7 +1478,7 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
                     j == noAttributesAGV + noAttributesJobAGV - 1):
                 std_weight[m][j] = 0
 
-            elif j == 12 and JAFAMT_value == 0:
+            elif j == 11 and JAFAMT_value == 0:
                 std_weight[m][j] = 0
 
             else:
@@ -1486,7 +1489,6 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
 
     # population_size = noAttributesMA + noAttributesJobMA + noAttributesAGV + noAttributesJobAGV
     population_size = 16
-
 
     for i in range(sum(machinesPerWC)):
         mean_weight[i][6] = -3
