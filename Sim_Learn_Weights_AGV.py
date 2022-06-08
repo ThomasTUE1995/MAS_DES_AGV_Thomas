@@ -38,12 +38,12 @@ maxTime = 10_000  # Runtime limit
 
 SAVE = True
 
-scenario = "scenario_1"
+scenario = "scenario_2"
 
 #              SCENARIO ------ WC - JT - MACH - PROC ---- AGVS -- MAXWIP - TIME - SEED - UTI
 #              =======================================================================================================
 situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [1, 1, 1, 1, 1], 250, 10_000, 150, 0.90],  # ARR 1.5804
-              'scenario_2': [[5, 2], 5, 16, [10, 50], [1, 1, 2, 1, 1], 300, 30_000, 150, 0.90],  # ARR 8.6249
+              'scenario_2': [[5, 2], 5, 16, [10, 50], [0, 0, 2, 0, 0], 300, 30_000, 150, 0.90],  # ARR 8.6249
               'scenario_3': [[5, 2], 5, 32, [2, 9], [2, 2, 2, 2, 1], 350, 10_000, 150, 0.80],  # ARR 0.889
               'scenario_4': [[5, 2], 5, 32, [10, 50], [2, 2, 2, 2, 2], 400, 30_000, 150, 0.75],  # ARR 5.1749
               'scenario_5': [[5, 2], 20, 16, [2, 9], [2, 2, 2, 2, 2], 250, 10_000, 150, 0.80],  # ARR 1.8285
@@ -1328,9 +1328,14 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
             else:
 
                 if AGV_rule <= 2:
-                    eta_new[mm][jj] = random.gauss(0, np.exp(std_weight_new[mm][jj]))
-                    test_weights_pos[mm][jj] = mean_weight_new[mm][jj] + (eta_new[mm][jj])
-                    test_weights_min[mm][jj] = mean_weight_new[mm][jj] - (eta_new[mm][jj])
+
+                    if jj == 12 and JAFAMT_value == 0:
+                        std_weight[mm][jk] = 0
+                    else:
+                        eta_new[mm][jj] = random.gauss(0, np.exp(std_weight_new[mm][jj]))
+                        test_weights_pos[mm][jj] = mean_weight_new[mm][jj] + (eta_new[mm][jj])
+                        test_weights_min[mm][jj] = mean_weight_new[mm][jj] - (eta_new[mm][jj])
+
                 else:
                     eta_new[mm][jj] = 0
                     test_weights_pos[mm][jj] = 0
@@ -1469,6 +1474,10 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
             if (j >= min(totalAttributes, noAttributesAGV + noAttributesJobAGV)) | (j == noAttributesAGV - 1) | (
                     j == noAttributesAGV + noAttributesJobAGV - 1):
                 std_weight[m][j] = 0
+
+            elif j == 12 and JAFAMT_value == 0:
+                std_weight[m][j] = 0
+
             else:
                 if AGV_rule <= 2:
                     std_weight[m][j] = std_weight[m][j] + np.log(0.3)
@@ -1729,9 +1738,9 @@ class New_Job:
 
 if __name__ == '__main__':
 
-    simulation = [["scenario_1", False, 2.0]]
+    simulation = [["scenario_2", True, 0.0], ["scenario_2", True, 2.0]]
 
-    # ["scenario_1", False, 0.0], ["scenario_1", True, 0.0]
+
 
     for sim in simulation:
 
@@ -1759,6 +1768,7 @@ if __name__ == '__main__':
         created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(agvsPerWC_new,
                                                                                                     machinesPerWC, seed)
 
+        # print(created_travel_time_matrix)
 
         max_job_priority = max(job_priority)
         max_setup_time = np.amax(setupTime)
