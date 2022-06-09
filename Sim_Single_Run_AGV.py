@@ -38,7 +38,7 @@ number = 0  # Max number of jobs if infinite is false
 noJobCap = True  # For infinite
 maxTime = 10000.0  # Runtime limit
 
-scenario = "scenario_1"
+scenario = "scenario_3"
 
 #              SCENARIO ------ WC - JT - MACH - PROC ---- AGVS -- MAXWIP - TIME - SEED - UTI
 #              =======================================================================================================
@@ -2176,7 +2176,7 @@ if __name__ == '__main__':
     for location in noOfWC:
         job_location_set[location] = location + 2
 
-    no_runs = 60
+    no_runs = 120
     no_processes = 6  # Change dependent on number of threads computer has, be sure to leave 1 thread remaining
 
 
@@ -2194,7 +2194,7 @@ if __name__ == '__main__':
     simulation_parameter_1 = [2]
 
     # Simulation Parameter 2 - Job almost finished a t machines trigger values
-    simulation_parameter_2 = [0.0]
+    simulation_parameter_2 = [2.0]
 
     # Simulation Parameter 4 - Direct or periodically job release APA (Direct = True)
     simulation_parameter_3 = [False]
@@ -2210,13 +2210,13 @@ if __name__ == '__main__':
 
     due_date_settings = [4, 4, 4]
 
-    normalization_MA_array = [[-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -10, 75],
+    """normalization_MA_array = [[-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -10, 75],
                               [-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -700, 250],
                               [-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -10, 75]]
 
     normalization_AGV_array = [[-10, 25, -112.5, 225.0, -112.5, 225.0],
                                [-10, 25, -112.5, 225.0, -250, 225.0],
-                               [-10, 25, -112.5, 225.0, -112.5, 225.0]]
+                               [-10, 25, -112.5, 225.0, -112.5, 225.0]]"""
 
     # ============================
 
