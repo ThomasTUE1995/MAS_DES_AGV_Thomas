@@ -38,14 +38,14 @@ number = 0  # Max number of jobs if infinite is false
 noJobCap = True  # For infinite
 maxTime = 10000.0  # Runtime limit
 
-scenario = "scenario_3"
+scenario = "scenario_1"
 
 #              SCENARIO ------ WC - JT - MACH - PROC ---- AGVS -- MAXWIP - TIME - SEED - UTI
 #              =======================================================================================================
 situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [1, 1, 1, 1, 1], 250, 10_000, 150, 0.90],  # ARR 1.5804 - SIM: 4
-              'scenario_2': [[5, 2], 5, 16, [10, 50], [1, 1, 2, 1, 1], 300, 30_000, 150, 0.90],  # ARR 8.6249 - SIM: 0
-              'scenario_3': [[5, 2], 5, 32, [2, 9], [2, 2, 2, 2, 1], 350, 10_000, 150, 0.80],  # ARR 0.889 - SIM: 0
-              'scenario_4': [[5, 2], 5, 32, [10, 50], [2, 2, 2, 2, 2], 400, 30_000, 150, 0.75],  # ARR 5.1749
+              'scenario_2': [[5, 2], 5, 16, [10, 50], [0, 0, 2, 0, 0], 300, 30_000, 150, 0.90],  # ARR 8.6249 - SIM: 0
+              'scenario_3': [[5, 2], 5, 32, [2, 9], [2, 2, 3, 2, 2], 350, 10_000, 150, 0.80],  # ARR 0.889 - SIM: 0
+              'scenario_4': [[5, 2], 5, 32, [10, 50], [0, 0, 5, 0, 0], 400, 30_000, 150, 0.90],  # ARR 5.1749
               'scenario_5': [[5, 2], 20, 16, [2, 9], [2, 2, 2, 2, 2], 250, 10_000, 150, 0.80],  # ARR 1.8285
               'scenario_6': [[5, 2], 20, 16, [10, 50], [2, 2, 2, 2, 2], 300, 40_000, 150, 0.75],  # ARR 10.617   TODO: DO AGAIN!
               'scenario_7': [[5, 2], 20, 32, [2, 9], [2, 2, 2, 2, 2], 400, 10_000, 150, 0.75],  # ARR 0.9752
@@ -969,8 +969,13 @@ def bid_calculation_ma(bid_weights, machinenumber, processing_time,
                    bid_weights[machinenumber - 1][4]  # Critical Ratio
     attribute[5] = (job_priority - 1) / (max_job_priority - 1) * bid_weights[machinenumber - 1][5]  # Job Priority
     attribute[6] = queue_length / 25 * bid_weights[machinenumber - 1][6]  # Queue length
+
     attribute[7] = (total_pt_queue - normalization[4]) / (normalization[5] - normalization[4]) * \
                    bid_weights[machinenumber - 1][7]  # Total processing time queue
+
+    # TODO
+    # attribute[7] = (total_pt_queue / (25 * max_processing_time)) * bid_weights[machinenumber - 1][7]  # Total processing time queue
+
     attribute[8] = 0
 
     """attribute[8] = 0
@@ -1394,9 +1399,11 @@ def agv_processing(job_shop, currentWC, agv_number, env, agv, normalization, agv
                 debug(14, env, next_job, currentWC, None, agv_number, None, agv_location, None)
                 job_shop.depot_queue.put(next_job)
 
-            # Trigger the APA that there is an idle AGV
-            if not job_shop.condition_flag_CFP_AGV[currentWC - 1].triggered:
-                job_shop.condition_flag_CFP_AGV[currentWC - 1].succeed()
+            # Trigger all APA that there is an idle AGV
+            for wc in noOfWC:
+
+                if not job_shop.condition_flag_CFP_AGV[wc].triggered:
+                    job_shop.condition_flag_CFP_AGV[wc].succeed()
 
         else:
             yield job_shop.condition_flag_agv[
@@ -1480,6 +1487,7 @@ def machine_processing(job_shop, currentWC, machine_number, env, last_job, machi
                                           next_job.name, "MA " + str(machine_number), env.now)
 
             next_job.cfp_wc_ma_result = None
+            next_job.agv_requested = False
 
             # May not be higher than 2.0!!!!!!
             request_earlier_AGV_time = JAFAMT
@@ -2179,8 +2187,6 @@ if __name__ == '__main__':
     no_runs = 120
     no_processes = 6  # Change dependent on number of threads computer has, be sure to leave 1 thread remaining
 
-
-
     # Simulation Parameter 1 - AGV scheduling control:
     # 1: Linear Bidding Auction - AGVs Dedicated to WC
     # 2: Linear Bidding Auction - AGVs Free For All
@@ -2194,7 +2200,7 @@ if __name__ == '__main__':
     simulation_parameter_1 = [2]
 
     # Simulation Parameter 2 - Job almost finished a t machines trigger values
-    simulation_parameter_2 = [2.0]
+    simulation_parameter_2 = [0.0]
 
     # Simulation Parameter 4 - Direct or periodically job release APA (Direct = True)
     simulation_parameter_3 = [False]
