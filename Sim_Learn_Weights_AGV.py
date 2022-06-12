@@ -38,23 +38,23 @@ maxTime = 10_000  # Runtime limit
 
 SAVE = True
 
-scenario = "scenario_2"
+scenario = "scenario_4"
 
 #              SCENARIO ------ WC - JT - MACH - PROC ---- AGVS -- MAXWIP - TIME - SEED - UTI
 #              =======================================================================================================
-situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [1, 1, 1, 1, 1], 250, 10_000, 150, 0.90],  # ARR 1.5804
-              'scenario_2': [[5, 2], 5, 16, [10, 50], [0, 0, 2, 0, 0], 300, 30_000, 150, 0.90],  # ARR 8.6249
-              'scenario_3': [[5, 2], 5, 32, [2, 9], [2, 2, 2, 2, 1], 350, 10_000, 150, 0.80],  # ARR 0.889
-              'scenario_4': [[5, 2], 5, 32, [10, 50], [2, 2, 2, 2, 2], 400, 30_000, 150, 0.75],  # ARR 5.1749
-              'scenario_5': [[5, 2], 20, 16, [2, 9], [2, 2, 2, 2, 2], 250, 10_000, 150, 0.80],  # ARR 1.8285
-              'scenario_6': [[5, 2], 20, 16, [10, 50], [2, 2, 2, 2, 2], 300, 40_000, 150, 0.75],  # ARR 10.617   TODO: DO AGAIN!
-              'scenario_7': [[5, 2], 20, 32, [2, 9], [2, 2, 2, 2, 2], 400, 10_000, 150, 0.75],  # ARR 0.9752
-              'scenario_8': [[5, 2], 20, 32, [10, 50], [2, 2, 2, 2, 2], 300, 30_000, 150, 0.55],  # ARR 7.2389
-              'scenario_9': [[10, 2], 5, 16, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 400, 20_000, 150, 0.45],  # ARR 5.006
-              'scenario_10': [[10, 2], 5, 16, [10, 50], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 40_000, 150, 0.60],  # ARR 18.781
-              'scenario_11': [[10, 2], 5, 32, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 10_000, 150, 0.45],  # ARR 2.503
+situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [1, 1, 1, 1, 1], 250, 10_000, 150, 0.95],
+              'scenario_2': [[5, 2], 5, 16, [10, 50], [0, 0, 1, 0, 0], 300, 30_000, 150, 0.95],
+              'scenario_3': [[5, 2], 5, 32, [2, 9], [2, 2, 3, 2, 2], 350, 10_000, 150, 0.85],
+              'scenario_4': [[5, 2], 5, 32, [10, 50], [0, 0, 2, 0, 0], 400, 30_000, 150, 0.85],  #   !--------
+              'scenario_5': [[5, 2], 20, 16, [2, 9], [2, 2, 2, 2, 2], 250, 10_000, 150, 0.90],
+              'scenario_6': [[5, 2], 20, 16, [10, 50], [2, 2, 2, 2, 2], 300, 40_000, 150, 0.75],
+              'scenario_7': [[5, 2], 20, 32, [2, 9], [2, 2, 2, 2, 2], 400, 10_000, 150, 0.75],
+              'scenario_8': [[5, 2], 20, 32, [10, 50], [2, 2, 2, 2, 2], 300, 30_000, 150, 0.55],
+              'scenario_9': [[10, 2], 5, 16, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 400, 20_000, 150, 0.45],
+              'scenario_10': [[10, 2], 5, 16, [10, 50], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 40_000, 150, 0.60],
+              'scenario_11': [[10, 2], 5, 32, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 10_000, 150, 0.45],
               'scenario_12': [[10, 2], 5, 32, [10, 50], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 250, 10_000, 150, 0.90],
-              'scenario_13': [[10, 2], 20, 16, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 10_000, 150, 0.45],  # ARR 4.253
+              'scenario_13': [[10, 2], 20, 16, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 10_000, 150, 0.45],
               'scenario_14': [[10, 2], 20, 16, [10, 50], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 250, 10_000, 150, 0.90],
               'scenario_15': [[10, 2], 20, 32, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 10_000, 150, 0.55],
               'scenario_16': [[10, 2], 20, 32, [10, 50], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 250, 10_000, 150, 0.90]}
@@ -628,6 +628,7 @@ def bid_winner_agv_all_WC(env, jobs, noOfAGVs, currentWC, job_shop, agvs, AGVsto
 
         put_job_in_agv_queue(dedicated_WC, dedicated_AGV, jobs[vv], job_shop, agvs)
 
+
     # Remove job from queue of the APA
     for ii in reversed(best_job):
         yield AGVstore.get(lambda mm: mm == jobs[ii])
@@ -683,6 +684,7 @@ def bid_winner_agv_per_WC(env, jobs, noOfAGVs, currentWC, job_shop, agvs, AGVsto
     # Put the winning jobs in the AGV queues
     for ii, vv in enumerate(best_job):
         put_job_in_agv_queue(currentWC, best_bid[ii], jobs[vv], job_shop, agvs)
+
 
     # Remove job from queue of the APA
     for ii in reversed(best_job):
@@ -756,6 +758,8 @@ def bid_winner_ma(env, jobs, noOfMachines, currentWC, job_shop, machine, store,
             AGVstore = job_shop.AGVstoreWC[currentWC - 1]
             AGVstore.put(jobs[vv])
             trigger = True
+
+
 
     # If one of the enumerated jobs is triggered, trigger the APA
     if trigger:
@@ -1087,9 +1091,11 @@ def agv_processing(job_shop, currentWC, agv_number, env, agv, normalization, agv
             else:
                 job_shop.depot_queue.put(next_job)
 
-            # Trigger the APA that there is an idle AGV
-            if not job_shop.condition_flag_CFP_AGV[currentWC - 1].triggered:
-                job_shop.condition_flag_CFP_AGV[currentWC - 1].succeed()
+            # Trigger all APA that there is an idle AGV
+            for wc in noOfWC:
+
+                if not job_shop.condition_flag_CFP_AGV[wc].triggered:
+                    job_shop.condition_flag_CFP_AGV[wc].succeed()
 
         else:
             yield job_shop.condition_flag_agv[
@@ -1152,6 +1158,8 @@ def machine_processing(job_shop, currentWC, machine_number, env, last_job, machi
             machine.items.remove(next_job)  # Remove job from queue
 
             next_job.cfp_wc_ma_result = None
+            next_job.agv_requested = False
+
 
             # May not be higher than 2.0!!!!!!
             request_earlier_AGV_time = JAFAMT
@@ -1171,11 +1179,17 @@ def machine_processing(job_shop, currentWC, machine_number, env, last_job, machi
                 AGVstore = job_shop.AGVstoreWC[selected_WC - 1]
                 AGVstore.put(next_job)
 
+
+
                 # Trigger the APA that there is a Job
                 if not job_shop.condition_flag_CFP_AGV[selected_WC - 1].triggered:
                     job_shop.condition_flag_CFP_AGV[selected_WC - 1].succeed()
 
             yield env.timeout(request_earlier_AGV_time)
+
+
+
+
 
             next_job.finishing_time_machine = env.now
 
@@ -1254,6 +1268,7 @@ def cfp_wc_agv(env, agvs, AGVstore, job_shop, currentWC, normalization, dispatch
                 yield env.process(c)
 
         if immediate_release:
+        #if immediate_release and not agvsPerWC[currentWC - 1] == 0:
 
             yield job_shop.condition_flag_CFP_AGV[currentWC - 1]  # Used if there is currently no job in the APA queue
 
@@ -1612,7 +1627,7 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
             if SAVE:
                 file2 = open(filename2 + ".csv", 'w')
                 writer = csv.writer(file2)
-                writer.writerows(best_weights)
+                writer.writerows(mean_weight)
                 file2.close()
             print("Best simulation generation:", best_sim_number)
 
@@ -1740,9 +1755,10 @@ class New_Job:
 
 if __name__ == '__main__':
 
-    simulation = [["scenario_2", True, 0.0], ["scenario_2", True, 2.0]]
+    simulation = [["scenario_4", False, 0.0], ["scenario_4", True, 0.0],
+                  ["scenario_4", False, 2.0], ["scenario_4", True, 2.0]]
 
-
+    # ["scenario_2", False, 0.0]
 
     for sim in simulation:
 

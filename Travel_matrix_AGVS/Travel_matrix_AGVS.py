@@ -66,4 +66,42 @@ def create_distance_matrix(machinesPerWC, load_time, seed):
 
 
 
+def create_WC_distance_matrix(machinesPerWC, load_time, seed):
+    """Creates distance matrix where distance can be requested by inputting:
+    distance_maxtrix[actual location][destination]"""
+
+    numpy.random.seed(seed)
+    noOfWC = range(len(machinesPerWC))
+
+    distance_matrix = {
+        "depot": {(ii, jj): np.random.uniform(1, 1.5) + load_time for jj in noOfWC for ii in range(machinesPerWC[jj])}}
+
+    distance_matrix["depot"].update({"depot": 0})
+
+    for jj in noOfWC:
+        for ii in range(machinesPerWC[jj]):
+            distance_matrix[(ii, jj)] = {(ii, jj): 0 for jj in noOfWC for ii in
+                                         range(machinesPerWC[jj])}
+            distance_matrix[(ii, jj)].update({"depot": 0})
+            distance_matrix[ii, jj][ii, jj] = 0
+
+    for jj in noOfWC:
+        for ii in range(machinesPerWC[jj]):
+
+            for wc_jj in noOfWC:
+                for wc_ii in range(machinesPerWC[wc_jj]):
+
+                    if jj == wc_jj and ii == wc_ii:
+                        distance_matrix[(ii, jj)].update({(wc_ii, wc_jj): 0})
+
+                    elif jj == wc_jj:
+                        distance_matrix[(ii, jj)].update({(wc_ii, wc_jj): np.random.uniform(0.5, 1) + load_time})
+
+                    else:
+                        distance_matrix[(ii, jj)].update({(wc_ii, wc_jj): np.random.uniform(1, 1.5) + load_time})
+
+                    distance_matrix[(ii, jj)].update({"depot": np.random.uniform(1, 1.5) + load_time})
+
+    return distance_matrix
+
 
