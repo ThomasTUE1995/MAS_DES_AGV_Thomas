@@ -1225,7 +1225,7 @@ def cfp_wc_ma(env, machine, store, job_shop, currentWC, normalization):
             c = bid_winner_ma(env, store.items, machinesPerWC[currentWC - 1], currentWC, job_shop,
                               machine, store, normalization)
 
-            yield env.process(c)
+            env.process(c)
 
         tib = 0.5  # Frequency of when CFPs are sent out
         yield env.timeout(tib)
@@ -1252,20 +1252,20 @@ def cfp_wc_agv(env, agvs, AGVstore, job_shop, currentWC, normalization, dispatch
                 c = bid_winner_agv_per_WC(env, job_list, agvsPerWC[currentWC - 1], currentWC, job_shop,
                                           agvs, AGVstore, normalization, agv_number_WC)
 
-                yield env.process(c)
+                env.process(c)
 
             # Bidding control - No AGV dedicated to WC
             if dispatch_rule_no == 2:
                 c = bid_winner_agv_all_WC(env, job_list, agvsPerWC, currentWC, job_shop,
                                           agvs, AGVstore, normalization, agv_number_WC)
 
-                yield env.process(c)
+                env.process(c)
 
             # Dispatch control
             if dispatch_rule_no > 2:
                 c = dispatch_control(env, job_list, agvsPerWC[currentWC - 1], currentWC, job_shop, agvs, AGVstore,
                                      dispatch_rule_no, agvsPerWC, agv_number_WC)
-                yield env.process(c)
+                env.process(c)
 
         if immediate_release:
         #if immediate_release and not agvsPerWC[currentWC - 1] == 0:
@@ -1755,10 +1755,11 @@ class New_Job:
 
 if __name__ == '__main__':
 
-    simulation = [["scenario_4", False, 0.0], ["scenario_4", True, 0.0],
-                  ["scenario_4", False, 2.0], ["scenario_4", True, 2.0]]
+    simulation = [["scenario_4", False, 0.0], ["scenario_4", True, 0.0], ["scenario_4", False, 2.0], ["scenario_4", True, 2.0]]
 
-    # ["scenario_2", False, 0.0]
+
+
+
 
     for sim in simulation:
 
