@@ -75,8 +75,8 @@ def new_scenario(max_workcenters, min_workcenters, no_of_jobs, total_machines, m
     number_of_AGVs_V2 = ((0.75 * (mean_operations_per_job * 2) + 1) / (arrival_rate[0] * utilization[0]))
 
     print("Arrival rate:", arrival_rate[0])
-    print("Number of AGVs V1:", number_of_AGVs)
-    print("Number of AGVs V2:", number_of_AGVs_V2)
+    print("Number of AGVs:", number_of_AGVs)
+
 
     # Get maximum critical ratio
     max_ddt = 8
