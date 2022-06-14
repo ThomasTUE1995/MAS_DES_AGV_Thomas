@@ -20,8 +20,8 @@ import pandas as pd
 
 import Random_Numpy_Parser as Random_Numpy
 from Travel_matrix_AGVS import Travel_matrix_AGVS as Travel_matrix
-import generate_scenario as generate_scenario
 
+import generate_scenario as generate_scenario
 from collections import defaultdict
 from functools import partial
 from pathos.multiprocessing import ProcessingPool as Pool
@@ -46,7 +46,7 @@ situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [1, 1, 1, 1, 1], 250, 10_000
               'scenario_2': [[5, 2], 5, 16, [10, 50], [0, 0, 1, 0, 0], 300, 30_000, 150, 0.95],
               'scenario_3': [[5, 2], 5, 32, [2, 9], [2, 2, 3, 2, 2], 350, 10_000, 150, 0.85],
               'scenario_4': [[5, 2], 5, 32, [10, 50], [0, 0, 2, 0, 0], 400, 30_000, 150, 0.85],  #   !--------
-              'scenario_5': [[5, 2], 20, 16, [2, 9], [2, 2, 2, 2, 2], 250, 10_000, 150, 0.90],
+              'scenario_5': [[5, 2], 20, 16, [2, 9], [2, 2, 2, 2, 2], 250, 10_000, 150, 0.85],
               'scenario_6': [[5, 2], 20, 16, [10, 50], [2, 2, 2, 2, 2], 300, 40_000, 150, 0.75],
               'scenario_7': [[5, 2], 20, 32, [2, 9], [2, 2, 2, 2, 2], 400, 10_000, 150, 0.75],
               'scenario_8': [[5, 2], 20, 32, [10, 50], [2, 2, 2, 2, 2], 300, 30_000, 150, 0.55],
@@ -865,6 +865,7 @@ def next_workstation(job, job_shop, env, min_job, max_job, max_wip):
 
     else:
 
+
         currentWC = operationOrder[job.type - 1][job.currentOperation - 1]
 
         # Set job destination to depot
@@ -888,8 +889,6 @@ def next_workstation(job, job_shop, env, min_job, max_job, max_wip):
         job_shop.tardiness[job.number] = max(job.priority * (finish_time - job.dueDate[job.numberOfOperations]), 0)
 
         job_shop.WIP -= 1
-
-        # print(job.number ,job_shop.WIP, env.now)
 
         job_shop.priority[job.number] = job.priority
         job_shop.flowtime[job.number] = finish_time - job.dueDate[0]
@@ -1164,6 +1163,7 @@ def machine_processing(job_shop, currentWC, machine_number, env, last_job, machi
             # May not be higher than 2.0!!!!!!
             request_earlier_AGV_time = JAFAMT
 
+
             yield env.timeout(time_in_processing - request_earlier_AGV_time)
 
             if request_earlier_AGV_time != 0:
@@ -1225,7 +1225,7 @@ def cfp_wc_ma(env, machine, store, job_shop, currentWC, normalization):
             c = bid_winner_ma(env, store.items, machinesPerWC[currentWC - 1], currentWC, job_shop,
                               machine, store, normalization)
 
-            env.process(c)
+            yield env.process(c)
 
         tib = 0.5  # Frequency of when CFPs are sent out
         yield env.timeout(tib)
@@ -1252,20 +1252,20 @@ def cfp_wc_agv(env, agvs, AGVstore, job_shop, currentWC, normalization, dispatch
                 c = bid_winner_agv_per_WC(env, job_list, agvsPerWC[currentWC - 1], currentWC, job_shop,
                                           agvs, AGVstore, normalization, agv_number_WC)
 
-                env.process(c)
+                yield env.process(c)
 
             # Bidding control - No AGV dedicated to WC
             if dispatch_rule_no == 2:
                 c = bid_winner_agv_all_WC(env, job_list, agvsPerWC, currentWC, job_shop,
                                           agvs, AGVstore, normalization, agv_number_WC)
 
-                env.process(c)
+                yield env.process(c)
 
             # Dispatch control
             if dispatch_rule_no > 2:
                 c = dispatch_control(env, job_list, agvsPerWC[currentWC - 1], currentWC, job_shop, agvs, AGVstore,
                                      dispatch_rule_no, agvsPerWC, agv_number_WC)
-                env.process(c)
+                yield env.process(c)
 
         if immediate_release:
         #if immediate_release and not agvsPerWC[currentWC - 1] == 0:
@@ -1755,7 +1755,7 @@ class New_Job:
 
 if __name__ == '__main__':
 
-    simulation = [["scenario_4", False, 0.0], ["scenario_4", True, 0.0], ["scenario_4", False, 2.0], ["scenario_4", True, 2.0]]
+    simulation = [["scenario_4", False, 0.0]]
 
 
 
