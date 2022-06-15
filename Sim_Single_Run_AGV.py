@@ -38,15 +38,15 @@ number = 0  # Max number of jobs if infinite is false
 noJobCap = True  # For infinite
 maxTime = 10000.0  # Runtime limit
 
-scenario = "scenario_3"
+scenario = "scenario_1"
 
 #              SCENARIO ------ WC - JT - MACH - PROC ---- AGVS -- MAXWIP - TIME - SEED - UTI
 #              =======================================================================================================
 situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [1, 1, 1, 1, 1], 250, 10_000, 150, 0.95],
               'scenario_2': [[5, 2], 5, 16, [10, 50], [0, 0, 1, 0, 0], 300, 30_000, 150, 0.95],
               'scenario_3': [[5, 2], 5, 32, [2, 9], [2, 2, 3, 2, 2], 350, 10_000, 150, 0.85],
-              'scenario_4': [[5, 2], 5, 32, [10, 50], [0, 0, 5, 0, 0], 400, 30_000, 150, 0.90],
-              'scenario_5': [[5, 2], 20, 16, [2, 9], [2, 2, 2, 2, 2], 250, 10_000, 150, 0.80],
+              'scenario_4': [[5, 2], 5, 32, [10, 50], [0, 0, 2, 0, 0], 400, 30_000, 150, 0.80],  #   !--------
+              'scenario_5': [[5, 2], 20, 16, [2, 9], [1, 1, 2, 1, 1], 250, 10_000, 150, 0.85],  #   !--------
               'scenario_6': [[5, 2], 20, 16, [10, 50], [2, 2, 2, 2, 2], 300, 40_000, 150, 0.75],
               'scenario_7': [[5, 2], 20, 32, [2, 9], [2, 2, 2, 2, 2], 400, 10_000, 150, 0.75],
               'scenario_8': [[5, 2], 20, 32, [10, 50], [2, 2, 2, 2, 2], 300, 30_000, 150, 0.55],
@@ -115,9 +115,9 @@ QUEUE = False
 DEBUG = False
 
 # PLOTTING
-GANTT_Machine = False
-GANTT_AGV = False
-AGV_ROUTING = False
+GANTT_Machine = True
+GANTT_AGV = True
+AGV_ROUTING = True
 
 # GANTT GLOBAL VARS
 GANTT_AGV_EMPTY_COUNTER = 0
@@ -125,6 +125,7 @@ GANTT_TRIGGER_MA = False
 GANTT_TRIGGER_AGV = False
 GANTT_BEGIN_TRIM = 1475  # Always minus 25
 GANTT_END_TRIM = 1575  # Always plus 25
+
 
 "Initial parameters of the GES"
 noAttributesMA = 9
@@ -919,11 +920,19 @@ def bid_calculation_agv(bid_weights, agvnumber, normalization, agv, job, job_sho
                         job_priority, total_rp, due_date, now, queue_distance):
     """Calulcates the bidding value of a job for AGVS."""
 
+    if job.location[0] == "d":
+        job_location = "d"
+    else:
+        job_location = job.location[1]
+
     attribute = [0] * noAttributesAGV
     attribute[0] = (queue_distance / 25) * \
                    bid_weights[sum(machinesPerWC) + agvnumber - 1][0]  # Total distance AGV queue
-    attribute[1] = processing_time / max_processing_time * bid_weights[sum(machinesPerWC) + agvnumber - 1][
-        1]  # Processing time
+
+    attribute[1] = (job_location_set[job_location] / len(job_location_set)) * \
+                   bid_weights[sum(machinesPerWC) + agvnumber - 1][
+                       1]  # Job location
+
     attribute[2] = (job_priority - 1) / (max_job_priority - 1) * bid_weights[sum(machinesPerWC) + agvnumber - 1][
         2]  # Job Priority
     attribute[3] = len(agv[0].items) / 25 * bid_weights[sum(machinesPerWC) + agvnumber - 1][3]  # AGV Queue length
@@ -1177,9 +1186,11 @@ def choose_job_queue_agv(job_weights, job, normalization, agv, agvnumber, env, d
     attribute_job[2] = (job_location_set[job_location] / len(job_location_set)) * \
                        job_weights[sum(machinesPerWC) + agvnumber - 1][
                            noAttributesAGV + 2]  # Job location
+
     attribute_job[3] = ((due_date - env.now - normalization[4]) / (normalization[5] - normalization[4])) * \
                        job_weights[sum(machinesPerWC) + agvnumber - 1][
                            noAttributesAGV + 3]  # Due date
+
     attribute_job[4] = (remaining_pt / (JAFAMT + 0.00000001)) * job_weights[sum(machinesPerWC) + agvnumber - 1][
         noAttributesAGV + 4]  # remaining_pt
 
@@ -1212,6 +1223,7 @@ def agv_processing(job_shop, currentWC, agv_number, env, agv, normalization, agv
 
     global GANTT_TRIGGER_AGV
     global GANTT_AGV_EMPTY_COUNTER
+    global DEBUG
 
     while True:
 
@@ -1237,7 +1249,7 @@ def agv_processing(job_shop, currentWC, agv_number, env, agv, normalization, agv
 
                     job_queue_priority = choose_job_queue_agv(job_shop.weights, job, normalization, agv, agv_number,
                                                               env,
-                                                              job.dueDate[job.currentOperation],
+                                                              job.dueDate[job.numberOfOperations],
                                                               job.priority, job_shop, remaining_pt, JAFAMT)  # Calulate the job priorities
                     priority_list.append(job_queue_priority)
 
@@ -1268,6 +1280,7 @@ def agv_processing(job_shop, currentWC, agv_number, env, agv, normalization, agv
                 if GANTT_AGV:
                     if GANTT_BEGIN_TRIM < env.now < GANTT_END_TRIM:
                         GANTT_TRIGGER_AGV = True
+
                     else:
                         GANTT_TRIGGER_AGV = False
 
@@ -1639,7 +1652,7 @@ def source(env, number1, interval, job_shop, due_date_setting, min_job):
 
 def AGV_routing(job_shop, agv_number_WC):
     dictionary = job_shop.AGV_routing_register
-    df = DataFrame(dictionary).fillna(0).transpose()
+    df = pd.DataFrame(dictionary).fillna(0).transpose()
     agv_trips = list([idx, *values] for idx, values in zip(df.index, df.values.astype(int).tolist()))
     agv_trips = np.delete(agv_trips, [0], 1)
     agv_trips = agv_trips.astype(np.int)
@@ -1719,6 +1732,7 @@ def MA_queue_length_plot(machine_queues, time):
 
 
 def visualize(gantt_list, GANTT_type):
+
     schedule = pd.DataFrame(gantt_list)
     JOBS = sorted(list(schedule['Job'].unique()))
     MACHINES = sorted(list(schedule['Machine'].unique()))
@@ -1747,18 +1761,35 @@ def visualize(gantt_list, GANTT_type):
         for mdx, machine in enumerate(MACHINES, 1):
             if (job, machine) in schedule.index:
 
+
                 xs = schedule.loc[(job, machine), 'Start']
                 xf = schedule.loc[(job, machine), 'Finish']
 
                 if GANTT_type == "AGV":
-                    xs = xs.to_numpy()[0]
-                    xf = xf.to_numpy()[0]
-                if job[:5] == "EMPTY":
-                    job = ""
-                    ax.plot([xs, xf], [mdx] * 2, c="#636061", **bar_style)
+
+                    for count_x, count in enumerate(xs):
+                        xs_x = xs.to_numpy()[count_x]
+                        xf_x = xf.to_numpy()[count_x]
+
+                        if job[:5] == "EMPTY":
+                            job = ""
+                            ax.plot([xs_x, xf_x], [mdx] * 2, c="#636061", **bar_style)
+                        else:
+                            ax.plot([xs_x, xf_x], [mdx] * 2, c=colors[jdx % 7], **bar_style)
+
+                        ax.text((xs_x + xf_x) / 2, mdx, job, **text_style, clip_on=True)
+
                 else:
-                    ax.plot([xs, xf], [mdx] * 2, c=colors[jdx % 7], **bar_style)
-                ax.text((xs + xf) / 2, mdx, job, **text_style, clip_on=True)
+
+                    if GANTT_type == "AGV":
+                        xs = xs.to_numpy()[0]
+                        xf = xf.to_numpy()[0]
+                    if job[:5] == "EMPTY":
+                        job = ""
+                        ax.plot([xs, xf], [mdx] * 2, c="#636061", **bar_style)
+                    else:
+                        ax.plot([xs, xf], [mdx] * 2, c=colors[jdx % 7], **bar_style)
+                    ax.text((xs + xf) / 2, mdx, job, **text_style, clip_on=True)
 
     if GANTT_type == "Machine":
         ax.set_title('Machine Schedule', fontsize=30, fontweight='bold', x=0.5, y=1.05)
@@ -1771,9 +1802,11 @@ def visualize(gantt_list, GANTT_type):
     for idx, s in enumerate([JOBS, MACHINES]):
 
         if GANTT_type == "AGV":
-            ax.set_xlim(GANTT_BEGIN_TRIM + 25, GANTT_END_TRIM - 25)
+            ax.set_xlim(GANTT_BEGIN_TRIM + 40, GANTT_END_TRIM - 40)
         else:
             ax.set_xlim(GANTT_BEGIN_TRIM + 25, GANTT_END_TRIM - 25)
+
+
 
         ax.set_ylim(0.5, len(s) + 0.5)
         ax.set_yticks(range(1, 1 + len(s)))
@@ -2184,8 +2217,8 @@ if __name__ == '__main__':
     for location in noOfWC:
         job_location_set[location] = location + 2
 
-    no_runs = 120
-    no_processes = 6  # Change dependent on number of threads computer has, be sure to leave 1 thread remaining
+    no_runs = 1
+    no_processes = 1  # Change dependent on number of threads computer has, be sure to leave 1 thread remaining
 
     # Simulation Parameter 1 - AGV scheduling control:
     # 1: Linear Bidding Auction - AGVs Dedicated to WC
@@ -2200,7 +2233,7 @@ if __name__ == '__main__':
     simulation_parameter_1 = [2]
 
     # Simulation Parameter 2 - Job almost finished a t machines trigger values
-    simulation_parameter_2 = [2.0]
+    simulation_parameter_2 = [0.0]
 
     # Simulation Parameter 4 - Direct or periodically job release APA (Direct = True)
     simulation_parameter_3 = [False]
