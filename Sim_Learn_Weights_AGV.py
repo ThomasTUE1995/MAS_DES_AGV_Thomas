@@ -1511,8 +1511,6 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
             mean_weight[i][3] = -3
             mean_weight[i][noAttributesAGV + 3] = -1
 
-    print(mean_weight)
-
     jobshop_pool = Pool(processes=1)
     alpha_mean = 0.1
     alpha_std = 0.025
