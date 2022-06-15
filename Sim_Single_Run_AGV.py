@@ -77,6 +77,8 @@ seed = situations[scenario][7]
 uti = situations[scenario][8]
 setup_factor = 0.20
 
+mean_processing_time = (min_proc + max_proc) / 2
+
 processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = generate_scenario.new_scenario(
         max_workcenters, min_workcenters, no_of_jobs, total_machines, min_proc, max_proc, setup_factor, uti, seed)
 
@@ -109,15 +111,17 @@ for location in noOfWC:
 
 
 # Virtual Machine QUEUE plotting
-QUEUE = False
+AGV_QUEUE_PLOT = False
+AGV_QUEUE_PLOT_BEGIN = 0
+AGV_QUEUE_PLOT_END = 1000
 
 # DEBUG PRINTING
 DEBUG = False
 
 # PLOTTING
-GANTT_Machine = True
+GANTT_Machine = False
 GANTT_AGV = True
-AGV_ROUTING = True
+AGV_ROUTING = False
 
 # GANTT GLOBAL VARS
 GANTT_AGV_EMPTY_COUNTER = 0
@@ -762,7 +766,7 @@ def bid_winner_agv_all_WC(env, jobs, noOfAGVs, currentWC, job_shop, agvs, AGVsto
                 dedicated_AGV = agv_number_WC[WC_value].index(agv_number)
 
         debug(7, env, jobs[vv], currentWC, None, agv_number, None, None, dedicated_WC)
-        put_job_in_agv_queue(dedicated_WC, dedicated_AGV, jobs[vv], job_shop, agvs)
+        put_job_in_agv_queue(dedicated_WC, dedicated_AGV, jobs[vv], job_shop, agvs, env.now, agv_number)
 
     # Remove job from queue of the APA
     for ii in reversed(best_job):
@@ -821,7 +825,7 @@ def bid_winner_agv_per_WC(env, jobs, noOfAGVs, currentWC, job_shop, agvs, AGVsto
     for ii, vv in enumerate(best_job):
         agv_number = agv_number_WC[currentWC - 1][best_bid[ii]]
         debug(7, env, jobs[vv], currentWC, None, agv_number, None, None)
-        put_job_in_agv_queue(currentWC, best_bid[ii], jobs[vv], job_shop, agvs)
+        put_job_in_agv_queue(currentWC, best_bid[ii], jobs[vv], job_shop, agvs, env.now, agv_number)
 
     # Remove job from queue of the APA
     for ii in reversed(best_job):
@@ -926,8 +930,13 @@ def bid_calculation_agv(bid_weights, agvnumber, normalization, agv, job, job_sho
         job_location = job.location[1]
 
     attribute = [0] * noAttributesAGV
-    attribute[0] = (queue_distance / 25) * \
-                   bid_weights[sum(machinesPerWC) + agvnumber - 1][0]  # Total distance AGV queue
+
+
+    attribute[0] = (queue_distance / 25) * bid_weights[sum(machinesPerWC) + agvnumber - 1][0]  # Total distance AGV queue
+
+    # Difference Queue Length
+    # attribute[0] = (queue_distance / 25) * -0.501  # Total distance AGV queue
+
 
     attribute[1] = (job_location_set[job_location] / len(job_location_set)) * \
                    bid_weights[sum(machinesPerWC) + agvnumber - 1][
@@ -935,29 +944,19 @@ def bid_calculation_agv(bid_weights, agvnumber, normalization, agv, job, job_sho
 
     attribute[2] = (job_priority - 1) / (max_job_priority - 1) * bid_weights[sum(machinesPerWC) + agvnumber - 1][
         2]  # Job Priority
+
     attribute[3] = len(agv[0].items) / 25 * bid_weights[sum(machinesPerWC) + agvnumber - 1][3]  # AGV Queue length
+
+    # Difference Queue Length
+    # attribute[3] = len(agv[0].items) / 25 * -0.501  # AGV Queue length
+
+
     attribute[4] = total_rp / max_remaining_processing_time * bid_weights[sum(machinesPerWC) + agvnumber - 1][
         4]  # Remaining processing time
     attribute[5] = (due_date - now - normalization[2]) / (normalization[3] - normalization[2]) * \
                    bid_weights[sum(machinesPerWC) + agvnumber - 1][5]  # Due date
     attribute[6] = 0
 
-    """attribute1 = [0] * noAttributesAGV
-    attribute1[0] = (queue_distance - normalization[0]) / (normalization[1] - normalization[0])
-    attribute1[1] = processing_time / 8.75
-    attribute1[2] = (job_priority - 1) / (10 - 1)
-    attribute1[3] = len(agv[0].items) / 25
-    attribute1[4] = total_rp / 25
-    attribute1[5] = (due_date - now - normalization[2]) / (normalization[3] - normalization[2])
-    attribute1 = np.around(attribute1, 2)
-
-    if len([*filter(lambda x: x >= 1.01, attribute1)]) > 0:
-        print(" ==== AGV Attributes ====")
-        print(attribute1)
-
-    if len([*filter(lambda x: x < 0, attribute1)]) > 0:
-        print(" ==== AGV Attributes ====")
-        print(attribute1)"""
 
     return sum(attribute)
 
@@ -978,35 +977,11 @@ def bid_calculation_ma(bid_weights, machinenumber, processing_time,
                    bid_weights[machinenumber - 1][4]  # Critical Ratio
     attribute[5] = (job_priority - 1) / (max_job_priority - 1) * bid_weights[machinenumber - 1][5]  # Job Priority
     attribute[6] = queue_length / 25 * bid_weights[machinenumber - 1][6]  # Queue length
-
-    attribute[7] = (total_pt_queue - normalization[4]) / (normalization[5] - normalization[4]) * \
-                   bid_weights[machinenumber - 1][7]  # Total processing time queue
-
-    # TODO
-    # attribute[7] = (total_pt_queue / (25 * max_processing_time)) * bid_weights[machinenumber - 1][7]  # Total processing time queue
+    attribute[7] = (total_pt_queue / mean_processing_time) / 25 * bid_weights[machinenumber - 1][7]  # Total processing time queue
 
     attribute[8] = 0
 
-    """attribute[8] = 0
 
-    attribute1 = [0] * noAttributesMA
-    attribute1[0] = processing_time / 8.75
-    attribute1[1] = (current - 1) / (5 - 1)
-    attribute1[2] = (due_date - now - normalization[0]) / (normalization[1] - normalization[0])
-    attribute1[3] = total_rp / 25
-    attribute1[4] = (((due_date - now) / total_rp) - normalization[2]) / (normalization[3] - normalization[2])
-    attribute1[5] = (job_priority - 1) / (10 - 1)
-    attribute1[6] = queue_length / 25
-    attribute1[7] = (total_pt_queue - normalization[4]) / (normalization[5] - normalization[4])
-    attribute1 = np.around(attribute1, 2)
-
-    if len([*filter(lambda x: x >= 1.01, attribute1)]) > 0:
-        print(" ==== MA Attributes ====")
-        print(attribute1)
-
-    if len([*filter(lambda x: x < 0, attribute1)]) > 0:
-        print(" ==== MA Attributes ====")
-        print(attribute1)"""
 
     return sum(attribute)
 
@@ -1112,12 +1087,19 @@ def set_makespan(current_makespan, job, env, setup_time):
     return max(add, new)
 
 
-def put_job_in_agv_queue(currentWC, choice, job, job_shop, agvs):
+def put_job_in_agv_queue(currentWC, choice, job, job_shop, agvs, now, agv_number):
     """Puts a job in an AGV queue. Also checks if the AGV is currently active
         or has a job in its queue. If not, it succeeds an event to tell the AGV
         that a new job has been added to the queue."""
 
     agvs[(choice, currentWC - 1)][0].put(job)
+
+    if AGV_QUEUE_PLOT:
+        # Register AGV queue length
+
+        if AGV_QUEUE_PLOT_BEGIN < now < AGV_QUEUE_PLOT_END:
+
+            job_shop.update_agv_queue(now, agv_number, 1)
 
     if not job_shop.condition_flag_agv[(choice, currentWC - 1)].triggered:
         job_shop.condition_flag_agv[(choice, currentWC - 1)].succeed()
@@ -1147,22 +1129,7 @@ def choose_job_queue_ma(job_weights, machinenumber, processing_time, due_date, e
     attribute_job[2] = setup_time / max_setup_time * job_weights[machinenumber - 1][noAttributesMA + 2]
     attribute_job[3] = job_present * job_weights[machinenumber - 1][noAttributesMA + 3]
 
-    """attribute1 = [0] * noAttributesJobMA
-    attribute1[0] = (due_date - processing_time - setup_time - env.now - normalization[6]) / (
-            normalization[7] - normalization[6]) 
-    attribute1[2] = (job_priority - 1) / (10 - 1) 
-    attribute1[3] = job_present 
-    attribute1 = np.around(attribute1, 2)
 
-    if len([*filter(lambda x: x >= 1.01, attribute1)]) > 0:
-        count += 1
-        print(" ==== MA Sequencing ====")
-        print(attribute1)
-
-    if len([*filter(lambda x: x < 0, attribute1)]) > 0:
-        count += 1
-        print(" ==== MA Sequencing ====")
-        print(attribute1)"""
 
     return sum(attribute_job)
 
@@ -1183,9 +1150,16 @@ def choose_job_queue_agv(job_weights, job, normalization, agv, agvnumber, env, d
     attribute_job[1] = (job_shop.travel_time_matrix[agv[1]][job.location] / 1.5) * \
                        job_weights[sum(machinesPerWC) + agvnumber - 1][
                            noAttributesAGV + 1]  # Job travel distance
+
+    # GANNT CHART DIFFERENCE AGV
+    # attribute_job[1] = (job_shop.travel_time_matrix[agv[1]][job.location] / 1.5) * 0  # Job travel distance
+
     attribute_job[2] = (job_location_set[job_location] / len(job_location_set)) * \
                        job_weights[sum(machinesPerWC) + agvnumber - 1][
                            noAttributesAGV + 2]  # Job location
+
+    # GANNT CHART DIFFERENCE AGV
+    # attribute_job[2] = (job_location_set[job_location] / len(job_location_set)) * 0  # Job location
 
     attribute_job[3] = ((due_date - env.now - normalization[4]) / (normalization[5] - normalization[4])) * \
                        job_weights[sum(machinesPerWC) + agvnumber - 1][
@@ -1196,22 +1170,7 @@ def choose_job_queue_agv(job_weights, job, normalization, agv, agvnumber, env, d
 
     attribute_job[5] = 0
 
-    """attribute1 = [0] * noAttributesJobAGV
-    attribute1[0] = (job_priority - 1) / (10 - 1) 
-    attribute1[1] = (job_shop.travel_time_matrix[agv[1]][job.location] / 1.5) 
-    attribute1[2] = (job_location_set[job.location[0]] / 6) 
-    attribute1[3] = ((due_date - env.now - normalization[4]) / (normalization[5] - normalization[4])) 
-    attribute1 = np.around(attribute1, 2)
 
-    if len([*filter(lambda x: x >= 1.01, attribute1)]) > 0:
-        count += 1
-        print(" ==== AGV Sequencing ====")
-        print(attribute1)
-
-    if len([*filter(lambda x: x < 0, attribute1)]) > 0:
-        count += 1
-        print(" ==== AGV Sequencing ====")
-        print(attribute1)"""
 
     return sum(attribute_job)
 
@@ -1310,11 +1269,6 @@ def agv_processing(job_shop, currentWC, agv_number, env, agv, normalization, agv
 
                 yield next_job.job_in_progress
 
-                if QUEUE:
-                    # Register queue length
-                    ma_number = machine_number_WC[agv_location[1]][agv_location[0]]
-                    job_shop.update_ma_queue(env.now, agv_location[1], ma_number, -1)
-
                 next_job.average_waiting_time_pickup = (next_job.average_waiting_time_pickup + (
                         env.now - next_job.finishing_time_machine)) / next_job.currentOperation
 
@@ -1390,12 +1344,13 @@ def agv_processing(job_shop, currentWC, agv_number, env, agv, normalization, agv
             agv[0].items.remove(next_job)
             agv_buf.items.remove(next_job)
 
-            if not agv_location == "depot":
+            if AGV_QUEUE_PLOT:
+                # Register AGV queue length
+                # agv_number = agv_number_WC[agv_location[1]][agv_location[0]]
+                if AGV_QUEUE_PLOT_BEGIN < env.now < AGV_QUEUE_PLOT_END:
+                    job_shop.update_agv_queue(env.now, agv_number, -1)
 
-                if QUEUE:
-                    # Register queue length
-                    ma_number = machine_number_WC[agv_location[1]][agv_location[0]]
-                    job_shop.update_ma_queue(env.now, ma_number, 1)
+            if not agv_location == "depot":
 
                 machine_buf = job_shop.machine_buffer_per_wc[agv_location][1]
                 machine_buf.items.remove(next_job)
@@ -1676,59 +1631,31 @@ def AGV_routing(job_shop, agv_number_WC):
     plt.show()
 
 
-def MA_queue_length_plot(machine_queues, time):
+def AGV_queue_length_plot(agv_queues, time):
     """for machine in machine_queues:
         plt.plot(time, machine_queues[machine], label = machine)"""
-    fig = plt.figure(figsize=(24, 10))
-    plt.plot(time, machine_queues["MA1"], label="MA1")
-    plt.plot(time, machine_queues["MA2"], label="MA2")
-    plt.plot(time, machine_queues["MA3"], label="MA3")
-    plt.plot(time, machine_queues["MA4"], label="MA4")
-    plt.title("Work-Center 1")
+
+
+    # fig = plt.figure(figsize=(24, 10))
+    fig = plt.figure()
+
+
+    for jj in noOfWC:
+        for ii in agv_number_WC[jj]:
+
+            plt.plot(time, agv_queues["AGV"+str(ii)], label="AGV"+str(ii))
+            break
+        break
+
+    plt.title("AGV Queue Lengths")
     plt.legend()
     plt.xlim([0, time[-1]])
     fig.tight_layout()
     plt.show()
 
-    fig = plt.figure(figsize=(24, 10))
-    plt.plot(time, machine_queues["MA5"], label="MA5")
-    plt.plot(time, machine_queues["MA6"], label="MA6")
-    plt.title("Work-Center 2")
-    plt.legend()
-    plt.xlim([0, time[-1]])
-    fig.tight_layout()
-    plt.show()
 
-    fig = plt.figure(figsize=(24, 10))
-    plt.plot(time, machine_queues["MA7"], label="MA7")
-    plt.plot(time, machine_queues["MA8"], label="MA8")
-    plt.plot(time, machine_queues["MA9"], label="MA9")
-    plt.plot(time, machine_queues["MA10"], label="MA10")
-    plt.plot(time, machine_queues["MA11"], label="MA11")
-    plt.title("Work-Center 3")
-    plt.legend()
-    plt.xlim([0, time[-1]])
-    fig.tight_layout()
-    plt.show()
 
-    fig = plt.figure(figsize=(24, 10))
-    plt.plot(time, machine_queues["MA12"], label="MA12")
-    plt.plot(time, machine_queues["MA13"], label="MA13")
-    plt.plot(time, machine_queues["MA14"], label="MA14")
-    plt.title("Work-Center 4")
-    plt.legend()
-    plt.xlim([0, time[-1]])
-    fig.tight_layout()
-    plt.show()
 
-    fig = plt.figure(figsize=(24, 10))
-    plt.plot(time, machine_queues["MA15"], label="MA15")
-    plt.plot(time, machine_queues["MA16"], label="MA16")
-    plt.title("Work-Center 5")
-    plt.legend()
-    plt.xlim([0, time[-1]])
-    fig.tight_layout()
-    plt.show()
 
 
 def visualize(gantt_list, GANTT_type):
@@ -1982,8 +1909,8 @@ def do_simulation_with_weights(mean_weights, arrivalMean, due_date_tightness, mi
     if GANTT_AGV:
         visualize(job_shop.gantt_list_agv, "AGV")
 
-    if QUEUE:
-        MA_queue_length_plot(job_shop.QueuesMAs, job_shop.QueueTimes)
+    if AGV_QUEUE_PLOT:
+        AGV_queue_length_plot(job_shop.QueuesAGVs, job_shop.QueueTimes)
 
     makespan, flow_time, mean_tardiness, max_tardiness, no_tardy_jobs_p1, no_tardy_jobs_p2, no_tardy_jobs_p3, \
     mean_WIP, early_term, utilization_result_MA, utilization_result_AGV, load_unload_AGVs = get_objectives(job_shop,
@@ -2067,8 +1994,8 @@ class jobShop:
         self.gantt_list_ma = []  # List with machine job information for gantt chart
         self.gantt_list_agv = []  # List with agv job information for gantt chart
 
-        self.QueuesMAs = {"MA" + str(ii): [0] for jj in noOfWC for ii in machine_number_WC[jj]}
-        self.QueueTimes = [0]
+        self.QueuesAGVs = {"AGV" + str(ii): [0] for jj in noOfWC for ii in agv_number_WC[jj]}
+        self.QueueTimes = [AGV_QUEUE_PLOT_BEGIN]
 
         self.AGV_total_driving_time = {"AGV" + str(ii): [0] for jj in noOfWC for ii in agv_number_WC[jj]}
 
@@ -2109,23 +2036,27 @@ class jobShop:
 
             self.gantt_list_ma.append(gantt_dict_ma)
 
-    def update_ma_queue(self, time, machine_nr, amount):
+    def update_agv_queue(self, time, agv_nr, amount):
 
         self.QueueTimes.append(time)
         self.QueueTimes.append(time)
 
-        for machine in self.QueuesMAs:
-            last_queue_length = self.QueuesMAs[machine][-1]
-            self.QueuesMAs[machine].append(last_queue_length)
+        for agv in self.QueuesAGVs:
+            last_queue_length = self.QueuesAGVs[agv][-1]
+            self.QueuesAGVs[agv].append(last_queue_length)
 
-        for machine in self.QueuesMAs:
-            if machine == "MA" + str(machine_nr):
-                last_queue_length = self.QueuesMAs["MA" + str(machine_nr)][-1]
-                self.QueuesMAs["MA" + str(machine_nr)].append(last_queue_length + amount)
+        for agv in self.QueuesAGVs:
+            if agv == "AGV" + str(agv_nr):
+
+                last_queue_length = self.QueuesAGVs[agv][-1]
+                self.QueuesAGVs[agv].append(last_queue_length + amount)
 
             else:
-                last_queue_length = self.QueuesMAs[machine][-1]
-                self.QueuesMAs[machine].append(last_queue_length)
+                last_queue_length = self.QueuesAGVs[agv][-1]
+                self.QueuesAGVs[agv].append(last_queue_length)
+
+
+
 
 
 class New_Job:
@@ -2260,9 +2191,9 @@ if __name__ == '__main__':
     # ============================
 
 
-    normalization_MA_array = [[-DDT * 0.50, DDT, -CR, CR, -DDT * 0.50, DDT, -DDT * 0.50, DDT],
-                              [-DDT * 0.50, DDT, -CR, CR, -DDT * 0.50, DDT, -DDT * 0.50, DDT],
-                              [-DDT * 0.50, DDT, -CR, CR, -DDT * 0.50, DDT, -DDT * 0.50, DDT]]
+    normalization_MA_array = [[-DDT * 0.50, DDT, -CR, CR, 0, 0, -DDT * 0.50, DDT],
+                              [-DDT * 0.50, DDT, -CR, CR, 0, 0, -DDT * 0.50, DDT],
+                              [-DDT * 0.50, DDT, -CR, CR, 0, 0, -DDT * 0.50, DDT]]
 
     normalization_AGV_array = [[0, 0, -DDT * 0.50, DDT, -DDT * 0.50, DDT],
                                [0, 0, -DDT * 0.50, DDT, -DDT * 0.50, DDT],

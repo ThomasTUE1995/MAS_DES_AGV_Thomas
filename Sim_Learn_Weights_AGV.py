@@ -77,6 +77,8 @@ seed = situations[scenario][7]
 uti = situations[scenario][8]
 setup_factor = 0.20
 
+mean_processing_time = (min_proc + max_proc) / 2
+
 processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = generate_scenario.new_scenario(
         max_workcenters, min_workcenters, no_of_jobs, total_machines, min_proc, max_proc, setup_factor, uti, seed)
 
@@ -761,7 +763,7 @@ def bid_winner_ma(env, jobs, noOfMachines, currentWC, job_shop, machine, store,
 
 
 
-    # If one of the enumerated jobs is triggered, trigger the APA
+    # If one of the enumerated jobs is scheduled, trigger the APA
     if trigger:
 
         # Trigger the APA that there is a Job
@@ -785,8 +787,6 @@ def bid_calculation_agv(bid_weights, agvnumber, normalization, agv, job, job_sho
     attribute = [0] * noAttributesAGV
     attribute[0] = (queue_distance / 25) * \
                    bid_weights[sum(machinesPerWC) + agvnumber - 1][0]  # Total distance AGV queue
-
-
     attribute[1] = (job_location_set[job_location] / len(job_location_set)) * bid_weights[sum(machinesPerWC) + agvnumber - 1][
         1]  # Job location
 
@@ -806,8 +806,6 @@ def bid_calculation_ma(bid_weights, machinenumber, processing_time,
                        normalization, number_operations):
     """Calulcates the bidding value of a job for MAs."""
 
-
-
     attribute = [0] * noAttributesMA
     attribute[0] = processing_time / max_processing_time * bid_weights[machinenumber - 1][0]  # processing time
     attribute[1] = (current - 1) / (number_operations - 1) * bid_weights[machinenumber - 1][1]  # remaing operations
@@ -818,8 +816,7 @@ def bid_calculation_ma(bid_weights, machinenumber, processing_time,
                    bid_weights[machinenumber - 1][4]  # Critical Ratio
     attribute[5] = (job_priority - 1) / (max_job_priority - 1) * bid_weights[machinenumber - 1][5]  # Job Priority
     attribute[6] = queue_length / 25 * bid_weights[machinenumber - 1][6]  # Queue length
-    attribute[7] = (total_pt_queue - normalization[4]) / (normalization[5] - normalization[4]) * \
-                   bid_weights[machinenumber - 1][7]  # Total processing time queue
+    attribute[7] = (total_pt_queue / mean_processing_time) / 25 * bid_weights[machinenumber - 1][7]  # Total processing time queue
     attribute[8] = 0
 
     return sum(attribute)
@@ -952,9 +949,7 @@ def choose_job_queue_ma(job_weights, machinenumber, processing_time, due_date, e
                         setup_time, job_priority, normalization, job_present):
     """Calculates prioirities of jobs in a machines queue"""
 
-
     attribute_job = [0] * noAttributesJobMA
-
     attribute_job[0] = (due_date - processing_time - setup_time - env.now - normalization[6]) / (
             normalization[7] - normalization[6]) * \
                        job_weights[machinenumber - 1][noAttributesMA]
@@ -1504,13 +1499,19 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
 
     for i in range(sum(machinesPerWC)):
         mean_weight[i][6] = -3
+        mean_weight[i][7] = -3
         mean_weight[i][noAttributesMA] = -1
         mean_weight[i][noAttributesMA + 2] = -3
 
+
+
     if AGV_rule <= 2:
         for i in range(sum(machinesPerWC), sum(machinesPerWC) + sum(agvsPerWC)):
+            mean_weight[i][0] = -3
             mean_weight[i][3] = -3
             mean_weight[i][noAttributesAGV + 3] = -1
+
+    print(mean_weight)
 
     jobshop_pool = Pool(processes=1)
     alpha_mean = 0.1
@@ -1854,15 +1855,13 @@ if __name__ == '__main__':
 
         # ============================
 
+        normalization_MA_array = [[-DDT * 0.50, DDT, -CR, CR, 0, 0, -DDT * 0.50, DDT],
+                                  [-DDT * 0.50, DDT, -CR, CR, 0, 0, -DDT * 0.50, DDT],
+                                  [-DDT * 0.50, DDT, -CR, CR, 0, 0, -DDT * 0.50, DDT]]
 
-
-        normalization_MA_array = [[-DDT*0.50, DDT, -CR, CR, -DDT*0.50, DDT, -DDT*0.50, DDT],
-                                  [-DDT*0.50, DDT, -CR, CR, -DDT*0.50, DDT, -DDT*0.50, DDT],
-                                  [-DDT*0.50, DDT, -CR, CR, -DDT*0.50, DDT, -DDT*0.50, DDT]]
-
-        normalization_AGV_array = [[0, 0, -DDT*0.50, DDT, -DDT*0.50, DDT],
-                                   [0, 0, -DDT*0.50, DDT, -DDT*0.50, DDT],
-                                   [0, 0, -DDT*0.50, DDT, -DDT*0.50, DDT]]
+        normalization_AGV_array = [[0, 0, -DDT * 0.50, DDT, -DDT * 0.50, DDT],
+                                   [0, 0, -DDT * 0.50, DDT, -DDT * 0.50, DDT],
+                                   [0, 0, -DDT * 0.50, DDT, -DDT * 0.50, DDT]]
 
 
 
