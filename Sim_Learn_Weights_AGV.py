@@ -38,85 +38,12 @@ maxTime = 10_000  # Runtime limit
 
 SAVE = True
 
-scenario = "scenario_7"
-
-#              SCENARIO ------ WC - JT - MACH - PROC ---- AGVS -- MAXWIP - TIME - SEED - UTI
-#              =======================================================================================================
-situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [1, 1, 1, 1, 1], 250, 10_000, 150, 0.95],
-              'scenario_2': [[5, 2], 5, 16, [10, 50], [0, 0, 1, 0, 0], 300, 30_000, 150, 0.95],
-              'scenario_3': [[5, 2], 5, 32, [2, 9], [2, 2, 3, 2, 2], 350, 10_000, 150, 0.85],
-              'scenario_4': [[5, 2], 5, 32, [10, 50], [0, 0, 2, 0, 0], 400, 30_000, 150, 0.80],
-              'scenario_5': [[5, 2], 20, 16, [2, 9], [1, 1, 2, 1, 1], 250, 10_000, 150, 0.85],
-              'scenario_6': [[5, 2], 20, 16, [10, 50], [0, 0, 2, 0, 0], 300, 40_000, 150, 0.80],
-              'scenario_7': [[5, 2], 20, 32, [2, 9], [2, 2, 3, 2, 2], 400, 10_000, 150, 0.80],
-              'scenario_8': [[5, 2], 20, 32, [10, 50], [2, 2, 2, 2, 2], 300, 30_000, 150, 0.55],
-              'scenario_9': [[10, 2], 5, 16, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 400, 20_000, 150, 0.45],
-              'scenario_10': [[10, 2], 5, 16, [10, 50], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 40_000, 150, 0.60],
-              'scenario_11': [[10, 2], 5, 32, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 10_000, 150, 0.45],
-              'scenario_12': [[10, 2], 5, 32, [10, 50], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 250, 10_000, 150, 0.90],
-              'scenario_13': [[10, 2], 20, 16, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 10_000, 150, 0.45],
-              'scenario_14': [[10, 2], 20, 16, [10, 50], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 250, 10_000, 150, 0.90],
-              'scenario_15': [[10, 2], 20, 32, [2, 9], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 500, 10_000, 150, 0.55],
-              'scenario_16': [[10, 2], 20, 32, [10, 50], [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 250, 10_000, 150, 0.90]}
-
-
-# Working situations:
-# - scenario_1
-
-
-max_workcenters = situations[scenario][0][0]
-min_workcenters = situations[scenario][0][1]
-no_of_jobs = situations[scenario][1]
-total_machines = situations[scenario][2]
-min_proc = situations[scenario][3][0]
-max_proc = situations[scenario][3][1]
-agvsPerWC_new = situations[scenario][4]
-max_wip = situations[scenario][5]
-maxTime = situations[scenario][6]
-seed = situations[scenario][7]
-uti = situations[scenario][8]
-setup_factor = 0.20
-
-mean_processing_time = (min_proc + max_proc) / 2
-
-processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = generate_scenario.new_scenario(
-        max_workcenters, min_workcenters, no_of_jobs, total_machines, min_proc, max_proc, setup_factor, uti, seed)
-
-
-numberOfOperations = [len(i) for i in operationOrder]
-noOfWC = range(len(machinesPerWC))
-
-arrival_rate = [arrival_rate[0] - 0]
-
-created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(agvsPerWC_new, machinesPerWC, seed)
-
-max_job_priority = max(job_priority)
-max_setup_time = np.amax(setupTime)
-max_processing_time = 0
-max_remaining_processing_time = 0
-for idx, job_type in enumerate(processingTimes):
-    max_pt = max(job_type)
-    summed_pt = sum(processingTimes[idx])
-
-    if max_pt > max_processing_time:
-        max_processing_time = max_pt
-    if summed_pt > max_remaining_processing_time:
-        max_remaining_processing_time = summed_pt
-
-job_location_set = {"d": 1}
-for location in noOfWC:
-    job_location_set[location] = location+2
-
-
-
 "Initial parameters of the GES"
 noAttributesMA = 9
 noAttributesAGV = 7
 
 noAttributesJobMA = 4
 noAttributesJobAGV = 6
-
-
 
 totalAttributes = max(noAttributesMA + noAttributesJobMA, noAttributesAGV + noAttributesJobAGV)
 
@@ -630,7 +557,6 @@ def bid_winner_agv_all_WC(env, jobs, noOfAGVs, currentWC, job_shop, agvs, AGVsto
 
         put_job_in_agv_queue(dedicated_WC, dedicated_AGV, jobs[vv], job_shop, agvs)
 
-
     # Remove job from queue of the APA
     for ii in reversed(best_job):
         yield AGVstore.get(lambda mm: mm == jobs[ii])
@@ -686,7 +612,6 @@ def bid_winner_agv_per_WC(env, jobs, noOfAGVs, currentWC, job_shop, agvs, AGVsto
     # Put the winning jobs in the AGV queues
     for ii, vv in enumerate(best_job):
         put_job_in_agv_queue(currentWC, best_bid[ii], jobs[vv], job_shop, agvs)
-
 
     # Remove job from queue of the APA
     for ii in reversed(best_job):
@@ -761,8 +686,6 @@ def bid_winner_ma(env, jobs, noOfMachines, currentWC, job_shop, machine, store,
             AGVstore.put(jobs[vv])
             trigger = True
 
-
-
     # If one of the enumerated jobs is scheduled, trigger the APA
     if trigger:
 
@@ -787,10 +710,12 @@ def bid_calculation_agv(bid_weights, agvnumber, normalization, agv, job, job_sho
     attribute = [0] * noAttributesAGV
     attribute[0] = (queue_distance / 25) * \
                    bid_weights[sum(machinesPerWC) + agvnumber - 1][0]  # Total distance AGV queue
-    attribute[1] = (job_location_set[job_location] / len(job_location_set)) * bid_weights[sum(machinesPerWC) + agvnumber - 1][
-        1]  # Job location
+    attribute[1] = (job_location_set[job_location] / len(job_location_set)) * \
+                   bid_weights[sum(machinesPerWC) + agvnumber - 1][
+                       1]  # Job location
 
-    attribute[2] = (job_priority - 1) / (max_job_priority - 1) * bid_weights[sum(machinesPerWC) + agvnumber - 1][2]  # Job Priority
+    attribute[2] = (job_priority - 1) / (max_job_priority - 1) * bid_weights[sum(machinesPerWC) + agvnumber - 1][
+        2]  # Job Priority
     attribute[3] = len(agv[0].items) / 25 * bid_weights[sum(machinesPerWC) + agvnumber - 1][3]  # AGV Queue length
     attribute[4] = total_rp / max_remaining_processing_time * bid_weights[sum(machinesPerWC) + agvnumber - 1][
         4]  # Remaining processing time
@@ -811,12 +736,14 @@ def bid_calculation_ma(bid_weights, machinenumber, processing_time,
     attribute[1] = (current - 1) / (number_operations - 1) * bid_weights[machinenumber - 1][1]  # remaing operations
     attribute[2] = (due_date - now - normalization[0]) / (normalization[1] - normalization[0]) * \
                    bid_weights[machinenumber - 1][2]  # slack
-    attribute[3] = total_rp / max_remaining_processing_time * bid_weights[machinenumber - 1][3]  # remaining processing time
+    attribute[3] = total_rp / max_remaining_processing_time * bid_weights[machinenumber - 1][
+        3]  # remaining processing time
     attribute[4] = (((due_date - now) / total_rp) - normalization[2]) / (normalization[3] - normalization[2]) * \
                    bid_weights[machinenumber - 1][4]  # Critical Ratio
     attribute[5] = (job_priority - 1) / (max_job_priority - 1) * bid_weights[machinenumber - 1][5]  # Job Priority
     attribute[6] = queue_length / 25 * bid_weights[machinenumber - 1][6]  # Queue length
-    attribute[7] = (total_pt_queue / mean_processing_time) / 25 * bid_weights[machinenumber - 1][7]  # Total processing time queue
+    attribute[7] = (total_pt_queue / mean_processing_time) / 25 * bid_weights[machinenumber - 1][
+        7]  # Total processing time queue
     attribute[8] = 0
 
     return sum(attribute)
@@ -869,7 +796,6 @@ def next_workstation(job, job_shop, env, min_job, max_job, max_wip):
 
     else:
 
-
         currentWC = operationOrder[job.type - 1][job.currentOperation - 1]
 
         # Set job destination to depot
@@ -903,7 +829,6 @@ def next_workstation(job, job_shop, env, min_job, max_job, max_wip):
                 job_shop.end_event.succeed()
 
         if (job_shop.WIP > max_wip) | (env.now > maxTime):
-
             """if job_shop.WIP > max_wip:
                 print("To much WIP")
             elif env.now > 10_000:
@@ -960,7 +885,8 @@ def choose_job_queue_ma(job_weights, machinenumber, processing_time, due_date, e
     return sum(attribute_job)
 
 
-def choose_job_queue_agv(job_weights, job, normalization, agv, agvnumber, env, due_date, job_priority, job_shop, remaining_pt, JAFAMT):
+def choose_job_queue_agv(job_weights, job, normalization, agv, agvnumber, env, due_date, job_priority, job_shop,
+                         remaining_pt, JAFAMT):
     """Calculates prioirities of jobs in an agv queue"""
 
     if job.location[0] == "d":
@@ -1020,7 +946,8 @@ def agv_processing(job_shop, currentWC, agv_number, env, agv, normalization, agv
                     job_queue_priority = choose_job_queue_agv(job_shop.weights, job, normalization, agv, agv_number,
                                                               env,
                                                               job.dueDate[job.numberOfOperations],
-                                                              job.priority, job_shop, remaining_pt, JAFAMT)  # Calulate the job priorities
+                                                              job.priority, job_shop, remaining_pt,
+                                                              JAFAMT)  # Calulate the job priorities
                     priority_list.append(job_queue_priority)
 
                 ind_processing_job = priority_list.index(max(priority_list))  # Get the job with the highest value
@@ -1260,7 +1187,7 @@ def cfp_wc_agv(env, agvs, AGVstore, job_shop, currentWC, normalization, dispatch
                 yield env.process(c)
 
         if immediate_release:
-        #if immediate_release and not agvsPerWC[currentWC - 1] == 0:
+            # if immediate_release and not agvsPerWC[currentWC - 1] == 0:
 
             yield job_shop.condition_flag_CFP_AGV[currentWC - 1]  # Used if there is currently no job in the APA queue
 
@@ -1349,7 +1276,6 @@ def do_simulation_with_weights(mean_weight_new, std_weight_new, arrivalMean, due
                     eta_new[mm][jj] = 0
                     test_weights_pos[mm][jj] = 0
                     test_weights_min[mm][jj] = 0
-
 
     env = Environment()
     job_shop = jobShop(env, test_weights_pos, created_travel_time_matrix, agvsPerWC,
@@ -1467,7 +1393,6 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
                norm_range_agv, min_job,
                max_job, wip_max, AGV_rule, created_travel_time_matrix, immediate_release_bool,
                JAFAMT_value):
-
     file1 = open(filename1, "w")
     mean_weight = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
     std_weight = np.zeros((sum(machinesPerWC) + sum(agvsPerWC), totalAttributes))
@@ -1502,8 +1427,6 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
         mean_weight[i][7] = -3
         mean_weight[i][noAttributesMA] = -1
         mean_weight[i][noAttributesMA + 2] = -3
-
-
 
     if AGV_rule <= 2:
         for i in range(sum(machinesPerWC), sum(machinesPerWC) + sum(agvsPerWC)):
@@ -1627,6 +1550,8 @@ def run_linear(filename1, filename2, arrival_time_mean, due_date_k, alpha, norm_
                 file2.close()
             print("Best simulation generation:", best_sim_number)
 
+    jobshop_pool.clear()
+
 
 # %% Classes
 
@@ -1708,7 +1633,7 @@ class New_Job:
     such as processing time, due date, number of operations etc."""
 
     def __init__(self, name, env, number1, dueDateTightness):
-        jobType = random.choices(range(len(operationOrder)), weights=demand, k=1)
+        jobType = random.choices(range(1, len(operationOrder) + 1), weights=demand, k=1)
         jobWeight = job_priority[jobType[0] - 1]
         self.type = jobType[0]
         self.priority = jobWeight
@@ -1751,16 +1676,48 @@ class New_Job:
 
 if __name__ == '__main__':
 
-    simulation = [["scenario_7", True, 0.0],
-                  ["scenario_7", False, 2.0], ["scenario_7", True, 2.0]]
+    simulation = [["scenario_1", False, 0.0]]
 
-
-
-
+    """["scenario_1", False, 0.0],
+        ["scenario_2", False, 0.0],
+        ["scenario_3", False, 0.0],
+        ["scenario_4", False, 0.0],
+        ["scenario_5", False, 0.0],
+        ["scenario_6", False, 0.0],
+        ["scenario_7", False, 0.0],
+        ["scenario_8", False, 0.0],
+        ["scenario_9", False, 0.0],
+        ["scenario_10", False, 0.0],
+        ["scenario_11", False, 0.0],
+        ["scenario_12", False, 0.0],
+        ["scenario_13", False, 0.0],
+        ["scenario_14", False, 0.0],
+        ["scenario_15", False, 0.0],
+        ["scenario_16", False, 0.0]"""
 
     for sim in simulation:
 
         scenario = sim[0]
+
+        situations = {'scenario_1': [[5, 2], 5, 16, [2, 9], [5, 0, 0, 0, 0], 250, 10_000, 150, 0.80],
+                      'scenario_2': [[5, 2], 5, 16, [10, 50], [2, 0, 0, 0, 0], 300, 30_000, 150, 0.80],
+                      'scenario_3': [[5, 2], 5, 32, [2, 9], [11, 0, 0, 0, 0], 350, 10_000, 150, 0.80],
+                      'scenario_4': [[5, 2], 5, 32, [10, 50], [2, 0, 0, 0, 0], 400, 30_000, 150, 0.80],
+                      'scenario_5': [[5, 2], 20, 16, [2, 9], [6, 0, 0, 0, 0], 250, 10_000, 150, 0.80],
+                      'scenario_6': [[5, 2], 20, 16, [10, 50], [2, 0, 0, 0, 0], 300, 40_000, 150, 0.80],
+                      'scenario_7': [[5, 2], 20, 32, [2, 9], [11, 0, 0, 0, 0], 400, 10_000, 150, 0.80],
+                      'scenario_8': [[5, 2], 20, 32, [10, 50], [2, 0, 0, 0, 0], 300, 30_000, 150, 0.80],
+                      'scenario_9': [[10, 2], 5, 16, [2, 9], [6, 0, 0, 0, 0, 0, 0, 0, 0, 0], 400, 20_000, 150, 0.80],
+                      'scenario_10': [[10, 2], 5, 16, [10, 50], [5, 0, 0, 0, 0, 0, 0, 0, 0, 0], 500, 40_000, 150, 0.75],
+                      'scenario_11': [[10, 2], 5, 32, [2, 9], [5, 0, 0, 0, 0, 0, 0, 0, 0, 0], 500, 10_000, 150, 0.70],
+                      'scenario_12': [[10, 2], 5, 32, [10, 50], [5, 0, 0, 0, 0, 0, 0, 0, 0, 0], 250, 10_000, 150, 0.75],
+                      'scenario_13': [[10, 2], 20, 16, [2, 9], [5, 0, 0, 0, 0, 0, 0, 0, 0, 0], 500, 10_000, 150, 0.80],
+                      'scenario_14': [[10, 2], 20, 16, [10, 50], [5, 0, 0, 0, 0, 0, 0, 0, 0, 0], 250, 10_000, 150, 0.70],
+                      'scenario_15': [[10, 2], 20, 32, [2, 9], [10, 0, 0, 0, 0, 0, 0, 0, 0, 0], 500, 10_000, 150, 0.80],
+                      'scenario_16': [[10, 2], 20, 32, [10, 50], [2, 0, 0, 0, 0, 0, 0, 0, 0, 0], 250, 10_000, 150, 0.80]}
+
+        # Working situations:
+        # - scenario_1
 
         max_workcenters = situations[scenario][0][0]
         min_workcenters = situations[scenario][0][1]
@@ -1775,22 +1732,25 @@ if __name__ == '__main__':
         uti = situations[scenario][8]
         setup_factor = 0.20
 
+        mean_processing_time = (min_proc + max_proc) / 2
+
         processingTimes, operationOrder, machinesPerWC, setupTime, demand, job_priority, arrival_rate, machine_number_WC, CR, DDT = generate_scenario.new_scenario(
             max_workcenters, min_workcenters, no_of_jobs, total_machines, min_proc, max_proc, setup_factor, uti, seed)
 
         numberOfOperations = [len(i) for i in operationOrder]
         noOfWC = range(len(machinesPerWC))
+
         arrival_rate = [arrival_rate[0] - 0]
+
+        agvsPerWC = None
+
         created_travel_time_matrix, agvsPerWC, agv_number_WC = Travel_matrix.choose_distance_matrix(agvsPerWC_new,
                                                                                                     machinesPerWC, seed)
-
-        # print(created_travel_time_matrix)
 
         max_job_priority = max(job_priority)
         max_setup_time = np.amax(setupTime)
         max_processing_time = 0
         max_remaining_processing_time = 0
-
         for idx, job_type in enumerate(processingTimes):
             max_pt = max(job_type)
             summed_pt = sum(processingTimes[idx])
@@ -1803,11 +1763,6 @@ if __name__ == '__main__':
         job_location_set = {"d": 1}
         for location in noOfWC:
             job_location_set[location] = location + 2
-
-
-
-
-
 
         # Simulation Parameter 1 - AGV scheduling control:
         # 1: Linear Bidding Auction - AGVs Dedicated to WC
@@ -1840,8 +1795,6 @@ if __name__ == '__main__':
 
         due_date_settings = [4, 4, 4]
 
-
-
         """normalization_MA_array = [[-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -10, 75],
                                   [-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -700, 250],
                                   [-112.5, 225.0, -21.0, 21.0, -112.5, 225.0, -10, 75]]
@@ -1850,7 +1803,6 @@ if __name__ == '__main__':
         normalization_AGV_array = [[-10, 25, -112.5, 225.0, -112.5, 225.0],
                                    [-10, 25, -112.5, 225.0, -250, 225.0],
                                    [-10, 25, -112.5, 225.0, -112.5, 225.0]]"""
-
 
         # ============================
 
@@ -1862,14 +1814,13 @@ if __name__ == '__main__':
                                    [0, 0, -DDT * 0.50, DDT, -DDT * 0.50, DDT],
                                    [0, 0, -DDT * 0.50, DDT, -DDT * 0.50, DDT]]
 
-
-
-
         AGV_rule = simulation_parameter_1[0]
         JAFAMT_value = simulation_parameter_2[0]
         immediate_release_bool = simulation_parameter_3[0]
 
+
         print("Simulation:", "(" + str(AGV_rule) + "-" + str(JAFAMT_value) + "-" + str(immediate_release_bool) + ")")
+        print(scenario)
 
         if AGV_rule == 2:
             sim_par_1_string = "AGV_ALL_WC"
